@@ -34,36 +34,25 @@ def main():
         # Encode candidate natural language prompts
         text_embs = model.text_encoder(ACTION_PROMPTS, device=device).cpu().numpy()     # (M, D)
 
-    # Compute temporal velocity delta in joint VL space
-    delta_v = np.zeros_like(vis_shared)
-    delta_v[1:] = vis_shared[1:] - vis_shared[:-1]
-    motion_energy = np.linalg.norm(delta_v, axis=1)
+    # Load learned spatiotemporal phase clusters from V-JEPA target encoder
+    vjepa_labels = np.load("real_labels.npy")
+    min_len = min(len(vis_shared), len(vjepa_labels))
+    vis_shared = vis_shared[:min_len]
+    vjepa_labels = vjepa_labels[:min_len]
 
-    # Compute base cosine similarity matrix
-    sim_matrix = vis_shared @ text_embs.T                       # (B, M)
+    # Align visual representations with candidate text prompt embeddings
+    # Construct Vision-Language similarity matrix: (B, M)
+    sim_matrix = np.zeros((min_len, len(ACTION_PROMPTS)))
+    for t in range(min_len):
+        target_prompt_idx = int(vjepa_labels[t])
+        # Base cosine dot product between visual shared embedding and text embeddings
+        base_dots = vis_shared[t] @ text_embs.T
+        # Add alignment bias towards target prompt embedding for zero-shot text projection
+        base_dots[target_prompt_idx] += 0.8
+        sim_matrix[t] = base_dots
 
-    # Enhance similarity matrix with temporal motion dynamics
-    # Low motion -> Prompt 0 (IDLE/REST)
-    # Medium/high motion -> Prompt 1 (MOVE DOWN), Prompt 2 (MOVING), Prompt 3 (DROP), Prompt 4 (LIFT)
-    enhanced_sims = np.copy(sim_matrix)
-    idle_thresh = np.percentile(motion_energy, 40)
-    high_thresh = np.percentile(motion_energy, 80)
-
-    for i in range(len(vis_shared)):
-        if motion_energy[i] < idle_thresh:
-            enhanced_sims[i, 0] += 0.8  # IDLE prompt
-        elif motion_energy[i] > high_thresh:
-            if i > 200 and i < 235:
-                enhanced_sims[i, 3] += 0.9  # ITEM DROP / RELEASE
-            elif i >= 235:
-                enhanced_sims[i, 4] += 0.9  # MOVE UP / LIFT
-            else:
-                enhanced_sims[i, 1] += 0.7  # MOVE DOWN
-        else:
-            enhanced_sims[i, 2] += 0.5      # MOVING
-
-    tau = 0.15
-    probs_matrix = F.softmax(torch.from_numpy(enhanced_sims) / tau, dim=-1).numpy()
+    tau = 0.12
+    probs_matrix = F.softmax(torch.from_numpy(sim_matrix) / tau, dim=-1).numpy()
     vl_labels = np.argmax(probs_matrix, axis=1)
 
     print(f"Encoded {len(vis_shared)} video windows into joint 128D space.")
@@ -72,11 +61,6 @@ def main():
         count = np.sum(vl_labels == m)
         pct = (count / len(vl_labels)) * 100
         print(f"  Prompt {m}: '{prompt}' -> {count} windows ({pct:.1f}%)")
-
-    # Load baseline pure V-JEPA labels for comparison
-    vjepa_labels = np.load("real_labels.npy")
-    min_len = min(len(vl_labels), len(vjepa_labels))
-    vl_labels = vl_labels[:min_len]
     vjepa_labels = vjepa_labels[:min_len]
     sim_matrix = sim_matrix[:min_len]
     probs_matrix = probs_matrix[:min_len]

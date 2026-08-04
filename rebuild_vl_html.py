@@ -76,7 +76,7 @@ def main():
     html_template = """<!DOCTYPE html><html><head><meta charset="utf-8">
 <title>VL-JEPA — Vision-Language Joint Embedding Architecture</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif;transition:background 0.25s,color 0.25s,border-color 0.25s}
 body{background:#fff;color:#262626;padding:14px}.wrap{max-width:1180px;margin:0 auto}
 h1{font-size:18px;color:#780010;margin-bottom:2px}.sub{font-size:12px;color:#595959;margin-bottom:14px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
@@ -86,12 +86,25 @@ h1{font-size:18px;color:#780010;margin-bottom:2px}.sub{font-size:12px;color:#595
 .b1{color:#2E75B6}.b2{color:#375623}.b3{color:#2E75B6}.b4{color:#BF9500}
 canvas{display:block;background:#fff;border-radius:6px;max-width:100%}
 .controls{display:flex;align-items:center;gap:12px;margin:14px 0 6px}
-button{font-size:13px;padding:7px 16px;border-radius:8px;border:1px solid #780010;background:#780010;color:#fff;cursor:pointer}
+button{font-size:13px;padding:7px 16px;border-radius:8px;border:1px solid #780010;background:#780010;color:#fff;cursor:pointer;font-weight:600}
 button.sec{background:#fff;color:#780010}input[type=range]{flex:1}
 .chip{display:inline-block;padding:3px 10px;border-radius:10px;color:#fff;font-size:11px;font-weight:700}
 .note{font-size:11px;color:#595959;line-height:1.5;margin-top:6px}.readnow{font-size:13px;font-weight:700}
 #legend{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0 6px;padding:10px 14px;background:#fafafa;border:1px solid #e2e2e2;border-radius:8px;font-size:12px;}
 .badge{background:#780010;color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px;}
+
+/* Dark Mode Theme */
+body.dark-mode{background:#0f172a;color:#f8fafc}
+body.dark-mode h1{color:#f43f5e}
+body.dark-mode .sub{color:#94a3b8}
+body.dark-mode .panel,body.dark-mode .fullpanel,body.dark-mode #legend{background:#1e293b;border-color:#334155;color:#f8fafc}
+body.dark-mode canvas{background:#0f172a}
+body.dark-mode .note{color:#94a3b8}
+body.dark-mode button{background:#e11d48;border-color:#e11d48;color:#fff}
+body.dark-mode button.sec{background:#1e293b;color:#f43f5e;border-color:#f43f5e}
+body.dark-mode .b1{color:#60a5fa}body.dark-mode .b2{color:#4ade80}body.dark-mode .b3{color:#38bdf8}body.dark-mode .b4{color:#facc15}
+body.dark-mode #legend-title{color:#f43f5e !important}
+body.dark-mode #legend span{color:#f8fafc !important}
 </style></head><body><div class="wrap">
 <h1>VL-JEPA — Vision-Language Joint Embedding & Zero-Shot Action Identification <span class="badge">Chen et al. 2025</span></h1>
 <div class="sub">Joint Vision-Language Predictive Architecture trained on UR5 video clips. Predicts spatiotemporal tubelet targets while aligning visual representations directly with natural language prompt embeddings.</div>
@@ -120,14 +133,19 @@ button.sec{background:#fff;color:#780010}input[type=range]{flex:1}
   <div class="note">Top bar: Pure V-JEPA self-supervised K-Means clustering baseline. Bottom bar: VL-JEPA zero-shot language prompt alignment.</div>
 </div>
 <div id="legend"></div>
-<div class="controls"><button id="play">▶ Play</button><button class="sec" id="reset">Reset</button>
-<input type="range" id="scrub" min="0" value="0"><span class="readnow" id="info"></span></div>
+<div class="controls">
+ <button id="play">▶ Play</button>
+ <button class="sec" id="reset">Reset</button>
+ <button class="sec" id="theme-toggle">🌙 Dark Mode</button>
+ <input type="range" id="scrub" min="0" value="0"><span class="readnow" id="info"></span>
+</div>
 </div><script>
 const D=%%DATA_BLOB%%;
 const N=D.vl_labels.length, PN=D.prompts, PC=D.colors, VID_FPS=30;
 let k=0, playing=false, timer=null;
 const realvid=document.getElementById('realvid'), scrub=document.getElementById('scrub');
 const info=document.getElementById('info'), chip=document.getElementById('chip');
+const themeToggle=document.getElementById('theme-toggle');
 scrub.max = N-1;
 
 const emb=document.getElementById('emb').getContext('2d');
@@ -138,6 +156,8 @@ let all_xs = D.vis_proj.map(p=>p[0]).concat(D.prompt_proj.map(p=>p[0]));
 let all_ys = D.vis_proj.map(p=>p[1]).concat(D.prompt_proj.map(p=>p[1]));
 let xmin=Math.min(...all_xs), xmax=Math.max(...all_xs), ymin=Math.min(...all_ys), ymax=Math.max(...all_ys);
 
+function isDark(){ return document.body.classList.contains('dark-mode'); }
+
 function drawVid(){
  const targetTime = D.centers[k] / VID_FPS;
  if(Math.abs(realvid.currentTime - targetTime) > 0.03) realvid.currentTime = targetTime;
@@ -146,28 +166,31 @@ function drawVid(){
 }
 
 function drawEmb(){
- emb.clearRect(0,0,540,200); const pad=28, W=540-2*pad, H=200-2*pad;
+ emb.fillStyle = isDark() ? '#0f172a' : '#ffffff';
+ emb.fillRect(0,0,540,200); const pad=28, W=540-2*pad, H=200-2*pad;
  const tx=x=>pad+(x-xmin)/(xmax-xmin+1e-9)*W, ty=y=>pad+(1-(y-ymin)/(ymax-ymin+1e-9))*H;
  for(let i=0;i<=k;i++){
   emb.beginPath();emb.arc(tx(D.vis_proj[i][0]),ty(D.vis_proj[i][1]),4.5,0,7);
   emb.fillStyle=PC[D.vl_labels[i]];emb.globalAlpha=0.7;emb.fill();emb.globalAlpha=1;
  }
  // Current visual cursor
- emb.beginPath();emb.arc(tx(D.vis_proj[k][0]),ty(D.vis_proj[k][1]),9,0,7);emb.lineWidth=2.5;emb.strokeStyle='#780010';emb.stroke();
+ emb.beginPath();emb.arc(tx(D.vis_proj[k][0]),ty(D.vis_proj[k][1]),9,0,7);emb.lineWidth=2.5;
+ emb.strokeStyle = isDark() ? '#f43f5e' : '#780010'; emb.stroke();
 
  // Draw Prompt Landmark Anchors (Diamond Star shapes)
  for(let m=0;m<D.prompt_proj.length;m++){
   const px=tx(D.prompt_proj[m][0]), py=ty(D.prompt_proj[m][1]);
-  emb.fillStyle=PC[m]; emb.strokeStyle='#000'; emb.lineWidth=1.5;
+  emb.fillStyle=PC[m]; emb.strokeStyle = isDark() ? '#f8fafc' : '#000000'; emb.lineWidth=1.5;
   emb.beginPath(); emb.moveTo(px, py-7); emb.lineTo(px+6, py); emb.lineTo(px, py+7); emb.lineTo(px-6, py); emb.closePath();
   emb.fill(); emb.stroke();
-  emb.fillStyle='#111'; emb.font='bold 9px sans-serif'; emb.fillText(`T${m}`, px+8, py+3);
+  emb.fillStyle = isDark() ? '#f8fafc' : '#111111'; emb.font='bold 9px sans-serif'; emb.fillText(`T${m}`, px+8, py+3);
  }
 }
 
 function drawDrift(){
  const pad=30, W=540-2*pad, H=140-2*pad;
- drift.clearRect(0,0,540,140);
+ drift.fillStyle = isDark() ? '#0f172a' : '#ffffff';
+ drift.fillRect(0,0,540,140);
  const tx=i=>pad+i/(N-1)*W, ty=v=>pad+(1-v)*H;
  
  // Draw probability curve for each language prompt
@@ -179,15 +202,16 @@ function drawDrift(){
   }
   drift.stroke();
  }
- drift.fillStyle='#595959';drift.font='10px sans-serif';drift.fillText('window #',pad+W/2-16,140-4);
+ drift.fillStyle = isDark() ? '#94a3b8' : '#595959'; drift.font='10px sans-serif';drift.fillText('window #',pad+W/2-16,140-4);
 }
 
 function drawTL(){
  const pad=20, W=1150-2*pad, H=160;
- tl.clearRect(0,0,1150,H);
+ tl.fillStyle = isDark() ? '#0f172a' : '#ffffff';
+ tl.fillRect(0,0,1150,H);
  
  // Header labels
- tl.fillStyle='#595959'; tl.font='bold 10px sans-serif';
+ tl.fillStyle = isDark() ? '#94a3b8' : '#595959'; tl.font='bold 10px sans-serif';
  tl.fillText("Pure V-JEPA Unsupervised (K-Means)", pad, 18);
  tl.fillText("VL-JEPA Zero-Shot Vision-Language", pad, 95);
 
@@ -198,42 +222,62 @@ function drawTL(){
   const cur=(i<=k)?D.vjepa_labels[i]:-1;
   if(i>k||cur!=prev1){
    const x0=pad+s1/(N-1)*W, x1=pad+i/(N-1)*W;
-   tl.fillStyle=PC[prev1]; tl.globalAlpha=0.75;
-   tl.fillRect(x0,y1,x1-x0,h1); tl.globalAlpha=1;
+   tl.fillStyle=PC[prev1];tl.globalAlpha=0.75;
+   tl.fillRect(x0,y1,x1-x0,h1);tl.globalAlpha=1;
    if(x1-x0>30){
-    tl.fillStyle='#fff'; tl.font='bold 10px sans-serif'; tl.textAlign='center';
-    tl.fillText(PN[prev1], (x0+x1)/2, y1+h1/2+3);
+    tl.fillStyle='#fff';tl.font='bold 10px sans-serif';tl.textAlign='center';
+    tl.fillText(PN[prev1],(x0+x1)/2,y1+h1/2+4);
    }
-   s1=i; prev1=cur;
+   s1=i;prev1=cur;
   }
  }
 
- // 2. Bottom Bar: VL-JEPA Zero-Shot Language Alignment
- let y2=102, h2=40;
+ // 2. Bottom Bar: VL-JEPA Zero-Shot
+ let y2=100, h2=40;
  let prev2=D.vl_labels[0], s2=0;
  for(let i=1;i<=k+1;i++){
   const cur=(i<=k)?D.vl_labels[i]:-1;
   if(i>k||cur!=prev2){
    const x0=pad+s2/(N-1)*W, x1=pad+i/(N-1)*W;
-   tl.fillStyle=PC[prev2]; tl.globalAlpha=0.85;
-   tl.fillRect(x0,y2,x1-x0,h2); tl.globalAlpha=1;
+   tl.fillStyle=PC[prev2];tl.globalAlpha=0.85;
+   tl.fillRect(x0,y2,x1-x0,h2);tl.globalAlpha=1;
    if(x1-x0>30){
-    tl.fillStyle='#fff'; tl.font='bold 10px sans-serif'; tl.textAlign='center';
-    tl.fillText(PN[prev2], (x0+x1)/2, y2+h2/2+3);
+    tl.fillStyle='#fff';tl.font='bold 10px sans-serif';tl.textAlign='center';
+    tl.fillText(PN[prev2],(x0+x1)/2,y2+h2/2+4);
    }
-   s2=i; prev2=cur;
+   s2=i;prev2=cur;
   }
  }
 
- // Cursor line
- const cx=pad+k/(N-1)*W; tl.strokeStyle='#780010'; tl.lineWidth=2.5; tl.beginPath(); tl.moveTo(cx,15); tl.lineTo(cx,H-10); tl.stroke();
+ const cx=pad+k/(N-1)*W; tl.strokeStyle = isDark() ? '#f43f5e' : '#780010'; tl.lineWidth=2.5;
+ tl.beginPath();tl.moveTo(cx,10);tl.lineTo(cx,H-10);tl.stroke();
  tl.textAlign='left';
 }
 
 function drawLegend(){
  const leg=document.getElementById('legend'); if(!leg)return;
- leg.innerHTML='<span style="font-weight:700;color:#780010;margin-right:8px;">VL-JEPA Action Prompts:</span>'+
-  D.prompts.map((p, key)=>`<span style="display:inline-flex;align-items:center;gap:4px;margin-right:12px;font-size:11.5px;font-weight:600;"><span style="width:12px;height:12px;border-radius:3px;background:${PC[key]};display:inline-block;"></span><span style="color:#262626;">T${key}: ${p}</span></span>`).join('');
+ leg.innerHTML=`<span id="legend-title" style="font-weight:700;color:${isDark()?'#f43f5e':'#780010'};margin-right:8px;">Action Prompts:</span>`+
+  PN.map((name,m)=>`<span style="display:inline-flex;align-items:center;gap:4px;margin-right:12px;font-size:11.5px;font-weight:600;"><span style="width:12px;height:12px;border-radius:3px;background:${PC[m]};display:inline-block;"></span><span style="color:${isDark()?'#f8fafc':'#262626'};">T${m}: ${name}</span></span>`).join('');
+}
+
+function updateThemeUI(){
+ if(isDark()){
+  themeToggle.textContent = '☀️ Light Mode';
+ } else {
+  themeToggle.textContent = '🌙 Dark Mode';
+ }
+ drawLegend();
+ render();
+}
+
+themeToggle.onclick=()=>{
+ document.body.classList.toggle('dark-mode');
+ localStorage.setItem('theme', isDark() ? 'dark' : 'light');
+ updateThemeUI();
+};
+
+if(localStorage.getItem('theme')==='dark'){
+ document.body.classList.add('dark-mode');
 }
 
 function render(){drawVid();drawEmb();drawDrift();drawTL();info.textContent=`window ${k+1}/${N} · frame ${D.centers[k]}`;scrub.value=k;}
@@ -243,8 +287,7 @@ function pause(){playing=false;document.getElementById('play').textContent='▶ 
 document.getElementById('play').onclick=()=>playing?pause():play();
 document.getElementById('reset').onclick=()=>{pause();k=0;render();};
 scrub.oninput=e=>{pause();k=+e.target.value;render();};
-drawLegend();
-render();
+updateThemeUI();
 </script></body></html>"""
 
     html_content = html_template.replace("%%DATA_BLOB%%", json_str)

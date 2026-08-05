@@ -113,10 +113,15 @@ def patch_html(html_path, data_blob):
     """Write complete HTML document with stacked full-width Panels 3 & 4 and fixed change signal."""
     json_str = json.dumps(data_blob, separators=(',', ': '))
 
-    html_template = """<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+    html_template = """<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>V-JEPA — UR5 Self-Supervised Action Discovery</title>
+<style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif;transition:background 0.25s,color 0.25s,border-color 0.25s}
 body{background:#fff;color:#262626;padding:14px}.wrap{max-width:1180px;margin:0 auto}
 h1{font-size:18px;color:#780010;margin-bottom:2px}.sub{font-size:12px;color:#595959;margin-bottom:14px}
+.nav{display:flex;gap:8px;margin-bottom:14px}
+.nav a{font-size:12px;font-weight:700;padding:6px 14px;border-radius:6px;text-decoration:none;transition:background 0.2s,color 0.2s}
+.nav a.act{background:#780010;color:#fff}.nav a.pas{background:#e2e2e2;color:#262626}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .panel{border:1px solid #e2e2e2;border-radius:10px;padding:12px;background:#fafafa}
 .fullpanel{border:1px solid #e2e2e2;border-radius:10px;padding:14px;background:#fafafa;margin-top:14px;width:100%}
@@ -134,6 +139,8 @@ button.sec{background:#fff;color:#780010}input[type=range]{flex:1}
 body.dark-mode{background:#0f172a;color:#f8fafc}
 body.dark-mode h1{color:#f43f5e}
 body.dark-mode .sub{color:#94a3b8}
+body.dark-mode .nav a.act{background:#e11d48;color:#fff}
+body.dark-mode .nav a.pas{background:#1e293b;color:#94a3b8;border:1px solid #334155}
 body.dark-mode .panel,body.dark-mode .fullpanel,body.dark-mode #legend{background:#1e293b;border-color:#334155;color:#f8fafc}
 body.dark-mode canvas{background:#0f172a}
 body.dark-mode .note{color:#94a3b8}
@@ -143,6 +150,10 @@ body.dark-mode .b1{color:#60a5fa}body.dark-mode .b2{color:#4ade80}body.dark-mode
 body.dark-mode #legend-title{color:#f43f5e !important}
 body.dark-mode #legend span{color:#f8fafc !important}
 </style></head><body><div class="wrap">
+<div class="nav">
+  <a class="act" href="index.html">Pure V-JEPA Baseline</a>
+  <a class="pas" href="UR5_VL_JEPA_interactive.html">VL-JEPA Zero-Shot</a>
+</div>
 <h1>V-JEPA on a REAL UR5 video — phases discovered with no labels</h1>
 <div class="sub">The encoder was trained self-supervised on this exact video. The phases below were found by clustering its embeddings — nobody labelled them.</div>
 <div class="grid">
@@ -320,4 +331,5 @@ if __name__ == "__main__":
 
     print("Patching HTML...")
     patch_html(HTML_FILE, blob)
+    patch_html("index.html", blob)
     print("DONE — HTML updated with real V-JEPA analysis of the actual UR5 video.")

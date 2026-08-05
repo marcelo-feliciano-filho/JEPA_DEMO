@@ -79,6 +79,9 @@ def main():
 *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif;transition:background 0.25s,color 0.25s,border-color 0.25s}
 body{background:#fff;color:#262626;padding:14px}.wrap{max-width:1180px;margin:0 auto}
 h1{font-size:18px;color:#780010;margin-bottom:2px}.sub{font-size:12px;color:#595959;margin-bottom:14px}
+.nav{display:flex;gap:8px;margin-bottom:14px}
+.nav a{font-size:12px;font-weight:700;padding:6px 14px;border-radius:6px;text-decoration:none;transition:background 0.2s,color 0.2s}
+.nav a.act{background:#780010;color:#fff}.nav a.pas{background:#e2e2e2;color:#262626}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .panel{border:1px solid #e2e2e2;border-radius:10px;padding:12px;background:#fafafa}
 .fullpanel{border:1px solid #e2e2e2;border-radius:10px;padding:14px;background:#fafafa;margin-top:14px;width:100%}
@@ -97,6 +100,8 @@ button.sec{background:#fff;color:#780010}input[type=range]{flex:1}
 body.dark-mode{background:#0f172a;color:#f8fafc}
 body.dark-mode h1{color:#f43f5e}
 body.dark-mode .sub{color:#94a3b8}
+body.dark-mode .nav a.act{background:#e11d48;color:#fff}
+body.dark-mode .nav a.pas{background:#1e293b;color:#94a3b8;border:1px solid #334155}
 body.dark-mode .panel,body.dark-mode .fullpanel,body.dark-mode #legend{background:#1e293b;border-color:#334155;color:#f8fafc}
 body.dark-mode canvas{background:#0f172a}
 body.dark-mode .note{color:#94a3b8}
@@ -106,6 +111,10 @@ body.dark-mode .b1{color:#60a5fa}body.dark-mode .b2{color:#4ade80}body.dark-mode
 body.dark-mode #legend-title{color:#f43f5e !important}
 body.dark-mode #legend span{color:#f8fafc !important}
 </style></head><body><div class="wrap">
+<div class="nav">
+  <a class="pas" href="index.html">Pure V-JEPA Baseline</a>
+  <a class="act" href="UR5_VL_JEPA_interactive.html">VL-JEPA Zero-Shot</a>
+</div>
 <h1>VL-JEPA — Vision-Language Joint Embedding & Zero-Shot Action Identification <span class="badge">Chen et al. 2025</span></h1>
 <div class="sub">Joint Vision-Language Predictive Architecture trained on UR5 video clips. Predicts spatiotemporal tubelet targets while aligning visual representations directly with natural language prompt embeddings.</div>
 <div class="grid">

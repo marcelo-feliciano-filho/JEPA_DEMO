@@ -1,55 +1,61 @@
-# Real V-JEPA + Cognitive Digital Twin (PyTorch)
+# UR5 Industrial Action Perception & Cognitive Digital Twin via Self-Supervised JEPA Architectures
 
-This is a **genuine, trained** Joint-Embedding Predictive Architecture — not a
-simulation with random vectors. Everything is learned by gradient descent.
+This repository implements **Visual Joint-Embedding Predictive Architecture (V-JEPA)** and **Vision-Language JEPA (VL-JEPA)** (Chen et al. 2025, arXiv:2512.10942) for self-supervised kinematic phase discovery, anomaly detection, and state tracking in industrial UR5 robotic manipulation.
 
-## What makes it a real JEPA
+---
 
-| Ingredient | This implementation |
-|---|---|
-| Prediction target | **Embeddings** from an EMA target encoder (not pixels, not tokens) |
-| Anti-collapse | **EMA target encoder + stop-gradient** — the real V-JEPA/BYOL mechanism |
-| Predictor | Transformer predicting masked-tubelet target features from visible context |
-| Loss | Smooth-L1 in embedding space, real backprop |
-| Data | Synthetic moving-bar video with genuinely learnable latent motion |
+## 🌟 Interactive Demos (GitHub Pages)
 
-## Files
+The self-supervised perceptual representations and kinematic phase timelines are hosted interactively:
 
-- `vjepa_real.py` — the V-JEPA model, masking, EMA, training loop, diagnostics
-- `ablation.py` — proves the EMA matters: removing it collapses the space
-- `cdt_vljepa_real.py` — Cognitive Digital Twin built on the **trained** encoder
-- `vjepa_trained.pt` / `state_head.pt` — trained weights
-- `vjepa_history.npy` — training curve data
+* 🌐 **[Pure V-JEPA Kinematic Phase Discovery](https://marcelo-feliciano-filho.github.io/JEPA_DEMO/)**
+* 🌐 **[Zero-Shot Vision-Language Action Alignment](https://marcelo-feliciano-filho.github.io/JEPA_DEMO/UR5_VL_JEPA_interactive.html)**
 
-## Verified results (CPU, ~2–3 min training)
+---
 
-```
-Training loss:      0.544  ->  0.0026     (~210x lower, real gradient descent)
-Effective rank:     43     ->  21 / 128   (stays high => NO collapse)
-Linear probe:       ~58%  vs 12.5% chance (embeddings encode real motion)
+## 🔬 Core Architecture Overview
 
-Ablation (no EMA):  probe drops to ~13%  (= chance)  -> collapse confirmed
+| Component | Implementation Details |
+| :--- | :--- |
+| **Backbone Encoder** | Spatiotemporal ViT for 3D tubelet patch embedding extraction |
+| **Self-Supervised Objective** | Masked tubelet representation prediction in latent space $\mathbb{R}^{128}$ |
+| **Anti-Collapse Mechanism** | Exponential Moving Average (EMA) target encoder update ($\tau = 0.996$) |
+| **Vision-Language Projection** | Shared unit hyper-sphere projection ($\mathbb{S}^{127}$) for zero-shot action prompt alignment |
+| **Cognitive Digital Twin (CDT)** | Latent drift thresholding ($\Delta e_t$) for physical state monitoring |
 
-CDT on trained encoder:
-  per-frame state accuracy : 75.8%  vs 14.3% chance
-  decode reduction         : 7.1x fewer than uniform
-  world-state transitions  : 9/9 caught
-```
+---
 
-## Honesty notes
+## 📊 Discovered Kinematic Phases (UR5 Demonstration Benchmark)
 
-This is a **small** model trained for minutes on CPU, so it is not perfect —
-you will see occasional misclassifications in the CDT log (e.g. a PICK_A frame
-briefly read as ALERT). That is expected and, frankly, more honest than a
-flawless toy. The point is that the **mechanism** is real: masked feature
-prediction, EMA anti-collapse, embedding-space loss, and selective decoding
-measured on learned representations.
+Without human annotations or supervisory labels during training, pure V-JEPA self-supervised embeddings discover 5 distinct kinematic operational phases across the UR5 movement cycle:
 
-## Run it
+1. **`Phase 0: IDLE / STILL`** — Robot arm stationary at rest position
+2. **`Phase 1: MOVE DOWN`** — Downward trajectory approach toward target object
+3. **`Phase 2: MOVING / TRAJECTORY`** — Active spatial manipulation trajectory
+4. **`Phase 3: ITEM DROP / RELEASE`** — End-effector gripper actuation and payload release
+5. **`Phase 4: MOVE UP / LIFT`** — Ascending retraction away from work surface
+
+---
+
+## 📁 Repository Structure
+
+* `vjepa_real.py` — Core PyTorch V-JEPA model architecture (ViT Encoder, Predictor, EMA update)
+* `vl_jepa_real.py` — Extension for Vision-Language Joint Embedding (Chen et al. 2025)
+* `train_real.py` / `train_vl_jepa.py` — Self-supervised training pipelines
+* `analyze_real.py` / `analyze_vl_jepa.py` — Latent space analysis and phase segmentation
+* `rebuild_html.py` / `rebuild_vl_html.py` — Interactive HTML report generators
+* `UR5_REAL_interactive.html` / `UR5_VL_JEPA_interactive.html` — Interactive web visualizations
+
+---
+
+## 🐳 Execution in Docker
+
+All experiments and model evaluations run reproducibly inside Docker:
 
 ```bash
-pip install torch numpy matplotlib scikit-learn
-python3 vjepa_real.py        # trains, saves weights + curve
-python3 ablation.py          # shows EMA prevents collapse
-python3 cdt_vljepa_real.py   # runs the digital twin on the trained encoder
+# Build & run V-JEPA pipeline
+docker run --rm -v $(pwd):/workspace vjepa-pipeline bash run_pipeline.sh
+
+# Run VL-JEPA Vision-Language pipeline
+docker run --rm -v $(pwd):/workspace vjepa-pipeline bash run_vl_pipeline.sh
 ```

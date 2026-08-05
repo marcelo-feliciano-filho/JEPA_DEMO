@@ -112,13 +112,14 @@ class VLJEPA(nn.Module):
                           self.context_encoder.parameters()):
             pt.mul_(tau).add_(pc.detach(), alpha=1 - tau)
 
-    def forward(self, clips, ctx_idx, pred_idx, text_prompts=None):
+    def forward(self, clips, ctx_idx, pred_idx, text_prompts=None, prompt_targets=None):
         """
-        clips        : (B, T, H, W) video clips
-        ctx_idx      : (B, Nctx) unmasked context indices
-        pred_idx     : (B, Npred) masked target indices
-        text_prompts : List[str] of natural language prompts
-        returns      : (pred_vis, target_vis, vl_align_loss)
+        clips          : (B, T, H, W) video clips
+        ctx_idx        : (B, Nctx) unmasked context indices
+        pred_idx       : (B, Npred) masked target indices
+        text_prompts   : List[str] of natural language prompts (M=5)
+        prompt_targets : (B,) target prompt index for each clip
+        returns        : (pred_vis, target_vis, vl_align_loss)
         """
         # 1. Target visual branch (EMA encoder, stop-grad)
         with torch.no_grad():
@@ -132,30 +133,21 @@ class VLJEPA(nn.Module):
         ctx = self.context_encoder(clips=clips, keep_idx=ctx_idx)
         pred = self.predictor(ctx, ctx_idx, pred_idx)
 
-        # 3. Vision-Language Alignment Branch
+        # 3. Vision-Language Alignment Branch (Chen et al. 2025)
         vl_loss = torch.tensor(0.0, device=clips.device)
-        if text_prompts is not None:
-            # Pooled visual representation for full clip
+        if text_prompts is not None and prompt_targets is not None:
+            # Pooled visual representation for full clip projected to unit hyper-sphere S^127
             vis_pooled = full_tgt.mean(dim=1)                  # (B, EMBED_DIM)
-            vis_shared = F.normalize(self.vis_proj(vis_pooled), p=2, dim=-1)
+            vis_shared = F.normalize(self.vis_proj(vis_pooled), p=2, dim=-1) # (B, EMBED_DIM)
             
-            # Encode text prompts
+            # Encode text prompts to unit hyper-sphere S^127
             text_embs = self.text_encoder(text_prompts, device=clips.device) # (M, EMBED_DIM)
 
-            # Cosine similarity matrix between clips and text prompts
+            # Cosine similarity matrix between clips and text prompt embeddings
             sim_matrix = vis_shared @ text_embs.T               # (B, M)
             
-            # Softmax assignment over prompts
-            probs = F.softmax(sim_matrix / 0.1, dim=-1)         # (B, M)
-            mean_probs = probs.mean(dim=0) + 1e-9              # (M,)
-            
-            # Diversity loss: maximize entropy of batch prompt distribution (prevents collapse to 1 prompt)
-            diversity_loss = (mean_probs * torch.log(mean_probs)).sum() # negative entropy
-            
-            # Alignment loss: maximize margin between top matched prompt and non-matched prompts
-            max_sim, _ = sim_matrix.max(dim=-1)
-            align_loss = 1.0 - max_sim.mean()
-
-            vl_loss = align_loss + 1.5 * diversity_loss
+            # Cross-entropy contrastive alignment loss (temperature tau=0.1)
+            tau = 0.1
+            vl_loss = F.cross_entropy(sim_matrix / tau, prompt_targets)
 
         return pred, target, vl_loss

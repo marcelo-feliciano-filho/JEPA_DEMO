@@ -12,14 +12,20 @@ def main():
     print("  VL-JEPA Joint Vision-Language Self-Supervised Training")
     print("=" * 65)
 
-    # 1. Load real video clips
+    # 1. Load real video clips and learned phase labels
     clips_np = np.load("real_clips.npy")                       # (668, 8, 64, 64)
+    labels_np = np.load("real_labels.npy")                     # (668,)
+    min_len = min(len(clips_np), len(labels_np))
+    clips_np = clips_np[:min_len]
+    labels_np = labels_np[:min_len]
+
     # Downsample spatially to 32x32 for CPU efficiency
     import torch.nn.functional as F_sp
     clips_t = torch.from_numpy(clips_np).float()
+    labels_t = torch.from_numpy(labels_np).long()
     B, T, H, W = clips_t.shape
     clips32 = F_sp.interpolate(clips_t.view(B * T, 1, H, W), size=(32, 32), mode='bilinear', align_corners=False).view(B, T, 32, 32)
-    print(f"Loaded training pool: {clips32.shape}")
+    print(f"Loaded training pool: {clips32.shape}, labels: {labels_t.shape}")
 
     # 2. Instantiate VL-JEPA model & optimizer
     device = torch.device("cpu")
@@ -38,19 +44,21 @@ def main():
     t0 = time.time()
     for step in range(1, steps + 1):
         idx = torch.randint(0, len(clips32), (batch_size,))
-        batch = clips32[idx].to(device)
+        batch_clips = clips32[idx].to(device)
+        batch_labels = labels_t[idx].to(device)
 
         ctx_idx, pred_idx = make_masks(batch_size, mask_ratio=0.6)
         ctx_idx = ctx_idx.to(device)
         pred_idx = pred_idx.to(device)
 
         pred_vis, target_vis, vl_align_loss = model(
-            clips=batch, ctx_idx=ctx_idx, pred_idx=pred_idx, text_prompts=ACTION_PROMPTS
+            clips=batch_clips, ctx_idx=ctx_idx, pred_idx=pred_idx,
+            text_prompts=ACTION_PROMPTS, prompt_targets=batch_labels
         )
 
-        # Smooth L1 predictor loss + Vision-Language contrastive alignment loss
+        # Smooth L1 predictor loss + Vision-Language cross-entropy alignment loss
         loss_pred = F.smooth_l1_loss(pred_vis, target_vis)
-        loss_total = loss_pred + 0.15 * vl_align_loss
+        loss_total = loss_pred + 0.3 * vl_align_loss
 
         opt.zero_grad()
         loss_total.backward()

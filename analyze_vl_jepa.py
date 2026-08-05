@@ -40,18 +40,10 @@ def main():
     vis_shared = vis_shared[:min_len]
     vjepa_labels = vjepa_labels[:min_len]
 
-    # Align visual representations with candidate text prompt embeddings
-    # Construct Vision-Language similarity matrix: (B, M)
-    sim_matrix = np.zeros((min_len, len(ACTION_PROMPTS)))
-    for t in range(min_len):
-        target_prompt_idx = int(vjepa_labels[t])
-        # Base cosine dot product between visual shared embedding and text embeddings
-        base_dots = vis_shared[t] @ text_embs.T
-        # Add alignment bias towards target prompt embedding for zero-shot text projection
-        base_dots[target_prompt_idx] += 0.8
-        sim_matrix[t] = base_dots
+    # 100% Pure Raw Cosine Similarity Matrix between trained visual embeddings and text prompt embeddings
+    sim_matrix = vis_shared @ text_embs.T                       # (B, M)
 
-    tau = 0.12
+    tau = 0.1
     probs_matrix = F.softmax(torch.from_numpy(sim_matrix) / tau, dim=-1).numpy()
     vl_labels = np.argmax(probs_matrix, axis=1)
 

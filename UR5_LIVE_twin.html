@@ -1,0 +1,165 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Live twin — real VL-JEPA, real time</title><link rel="icon" href="data:,"><style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif}
+body,.panel,.fullpanel,#legend,button,.nav a,canvas{transition:background 0.25s,color 0.25s,border-color 0.25s}
+body{background:#fff;color:#262626;padding:14px}.wrap{max-width:1180px;margin:0 auto}
+h1{font-size:18px;color:#780010;margin-bottom:2px}.sub{font-size:12px;color:#595959;margin-bottom:14px}
+.nav{display:flex;gap:8px;margin-bottom:14px}
+.nav a{font-size:12px;font-weight:700;padding:6px 14px;border-radius:6px;text-decoration:none;transition:background 0.2s,color 0.2s}
+.nav a.act{background:#780010;color:#fff}.nav a.pas{background:#e2e2e2;color:#262626}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.panel{border:1px solid #e2e2e2;border-radius:10px;padding:12px;background:#fafafa}
+.fullpanel{border:1px solid #e2e2e2;border-radius:10px;padding:14px;background:#fafafa;margin-top:14px;width:100%}
+.ptitle{font-size:12.5px;font-weight:700;margin-bottom:8px}
+.b1{color:#2E75B6}.b2{color:#375623}.b3{color:#2E75B6}.b4{color:#BF9500}
+canvas{display:block;background:#fff;border-radius:6px;max-width:100%}
+.controls{display:flex;align-items:center;gap:12px;margin:14px 0 6px;flex-wrap:wrap}
+button{font-size:13px;padding:7px 16px;border-radius:8px;border:1px solid #780010;background:#780010;color:#fff;cursor:pointer;font-weight:600}
+button.sec{background:#fff;color:#780010}input[type=range]{flex:1}
+.chip{display:inline-block;padding:2px 10px;border-radius:10px;color:#fff;font-size:11px;font-weight:700}
+.note{font-size:11px;color:#595959;line-height:1.5;margin-top:6px}.readnow{font-size:13px;font-weight:700}
+.badge{background:#780010;color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px;white-space:nowrap}
+.sep{border-top:1px solid #e2e2e2;padding-top:10px}
+#legend{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0 6px;padding:10px 14px;background:#fafafa;border:1px solid #e2e2e2;border-radius:8px;font-size:12px;}
+.verdict{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}
+.verdict div{border:1px solid #e2e2e2;border-radius:10px;padding:10px 12px;background:#fafafa;font-size:11.5px;line-height:1.45}
+.verdict h3{font-size:12px;margin-bottom:4px}.verdict .big{font-size:20px;font-weight:800;color:#780010;display:block;margin:2px 0}
+.ok{color:#1a7f37;font-weight:700}.no{color:#C03030;font-weight:700}.meh{color:#BF9500;font-weight:700}
+.alarm{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:10px;background:#C03030;color:#fff;font-size:11px;font-weight:800;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.35}}
+.vidwrap{position:relative;width:100%;margin:0 auto}
+#ov{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;border-radius:6px;background:transparent !important}
+body.dark-mode{background:#0f172a;color:#f8fafc}
+body.dark-mode h1{color:#f43f5e}
+body.dark-mode .sub{color:#94a3b8}
+body.dark-mode .nav a.act{background:#e11d48;color:#fff}
+body.dark-mode .nav a.pas{background:#1e293b;color:#94a3b8;border:1px solid #334155}
+body.dark-mode .panel,body.dark-mode .fullpanel,body.dark-mode #legend{background:#1e293b;border-color:#334155;color:#f8fafc}
+body.dark-mode canvas{background:#0f172a}
+body.dark-mode .sep{border-color:#334155}
+body.dark-mode .note{color:#94a3b8}
+body.dark-mode button{background:#e11d48;border-color:#e11d48;color:#fff}
+body.dark-mode button.sec{background:#1e293b;color:#f43f5e;border-color:#f43f5e}
+body.dark-mode .b1{color:#60a5fa}body.dark-mode .b2{color:#4ade80}body.dark-mode .b3{color:#38bdf8}body.dark-mode .b4{color:#facc15}
+body.dark-mode #legend-title{color:#f43f5e !important}
+body.dark-mode #legend span{color:#f8fafc !important}
+body.dark-mode .verdict div{background:#0f172a;border-color:#334155}body.dark-mode .verdict .big{color:#f43f5e}
+/* Responsive: single column + full-width scrubber below ~760px */
+@media (max-width:760px){
+ body{padding:10px}h1{font-size:16px}.grid{grid-template-columns:1fr}
+ .controls input[type=range]{flex-basis:100%;order:10}.readnow{margin-left:auto}
+ .nav{flex-wrap:wrap}
+}
+
+.live{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:14px}
+.src button{margin-right:6px}.seen{image-rendering:pixelated;border:1px solid #e2e2e2;border-radius:4px;background:#000}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.card{border:1px solid #e2e2e2;border-radius:10px;padding:8px;background:#fff;min-width:0;border-top-width:5px}
+.card b{display:block;font-size:10px;color:#595959;text-transform:uppercase;letter-spacing:.04em}
+.card .nm{font-size:13px;font-weight:800;margin:2px 0}.card .eta{font-size:20px;font-weight:800}.card .p{font-size:11px;color:#595959}
+.gauge{height:10px;border-radius:5px;background:#eee;overflow:hidden;position:relative;margin:4px 0}.gauge i{display:block;height:100%;background:#C03030}
+.gauge em{position:absolute;left:50%;top:-2px;width:1px;height:14px;background:#000}
+.lat{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10.5px;word-break:break-all;line-height:1.45}
+.banner{border:2px solid #C03030;border-radius:10px;padding:10px 12px;background:#fff4f4;font-size:12.5px;margin:10px 0}
+.badge2{display:inline-block;padding:2px 10px;border-radius:10px;color:#fff;font-weight:800;font-size:11px;margin-left:6px}
+body.dark-mode .card{background:#0f172a;border-color:#334155}body.dark-mode .card b,body.dark-mode .card .p{color:#94a3b8}
+body.dark-mode .gauge{background:#1e293b}body.dark-mode .banner{background:#3b0a0a;border-color:#f43f5e}
+@media (max-width:760px){.live{grid-template-columns:1fr}.cards{grid-template-columns:1fr}}
+</style></head><body><div class="wrap">
+<div class="nav"><a class="pas" href="UR5_REAL_interactive.html">Pure V-JEPA Baseline</a><a class="pas" href="UR5_VL_JEPA_interactive.html">VL-JEPA Language Alignment</a><a class="pas" href="UR5_CDT_interactive.html">Cognitive Digital Twin (MoE)</a><a class="pas" href="UR5_NEXT_STAGE_mockup.html">Next-stage twin (Stage-JEPA)</a><a class="pas" href="UR5_COGNITIVE_SCENARIOS.html">Is it cognitive? (scenarios)</a><a class="act" href="UR5_LIVE_twin.html">LIVE: real model, real time</a><a class="pas" href="WORKCELL_interactive.html">2 robots + 1 human (simulated)</a><a class="pas" href="COLLAB_interactive.html">New collaboration video (unseen)</a></div>
+<h1>Live twin — the real VL-JEPA encoder and the cognitive twin answering in real time</h1>
+<div class="sub">This page has <b>no precomputed data</b>. Every frame of the video on the left is captured (RGB, downscaled ≤ 480 px), posted to <code>python live_twin.py --serve</code>, turned by the server into the 48×64 letterboxed gray input through the <b>same ffmpeg filter chain the model was trained with</b> (shown below the video exactly as fed to the encoder), encoded by the checkpointed VL-JEPA encoder into a 128-d latent (printed verbatim on the right), and interpreted by the next-stage twin (plan, expectations, grounding, validation gate). Latencies are the server's own measurements. Switch to your webcam or open any video file: the models will answer — and, on a scene they have never seen, they should say so.</div>
+<div class="banner" id="banner">Connecting to the live server… if this stays, start it with <code>python live_twin.py --serve</code> and open <code>http://127.0.0.1:8765/</code>.</div>
+<div class="live">
+ <div class="panel"><div class="ptitle b1">1 · Source <span id="chip" class="chip"></span><span id="alarm" class="badge2" style="display:none;background:#C03030">ALARM</span><span id="unf" class="badge2" style="display:none;background:#666">UNFAMILIAR</span><span id="unk" class="badge2" style="display:none;background:#333">NOT MY PROCESS</span></div>
+   <div class="src"><button id="b-demo">demo video</button><button class="sec" id="b-cam">webcam</button><button class="sec" id="b-file">open file…</button><input type="file" id="file" accept="video/*" style="display:none">
+     <button class="sec" id="b-freeze" title="keep sending the last frame: the robot 'stalls'">hold frame</button><button class="sec" id="b-speed" title="send every 3rd frame: 3× speed">3× speed</button><button class="sec" id="b-reset">reset twin</button></div>
+   <div style="display:flex;gap:10px;align-items:flex-start;margin-top:8px">
+     <video id="src" muted playsinline controls style="width:60%;max-width:300px;border-radius:6px;background:#000"></video>
+     <div><div class="note" style="margin:0 0 4px">model input (48×64 gray, as fed to the encoder)</div><canvas id="seen" class="seen" width="48" height="64" style="width:144px;height:192px"></canvas>
+       <div class="note" id="stat">–</div></div>
+   </div>
+   <div class="note" id="narr" style="margin-top:8px">&nbsp;</div>
+ </div>
+ <div class="panel"><div class="ptitle b4">2 · What the models say about the frames you are watching</div>
+   <div class="cards" id="cards"></div>
+   <div style="margin-top:10px;font-size:11px"><b>expectation violation</b> (1.0 = alarm; the twin's score) <div class="gauge"><i id="g-twin" style="width:0%"></i><em></em></div>
+   <span id="why" class="note" style="display:block;min-height:16px"></span></div>
+   <div style="margin-top:8px;font-size:11px"><b>latent z<sub>t</sub></b> — the encoder's output for the current window, as returned by the server (128 floats, unit norm)</div>
+   <canvas id="zbar" width="520" height="60" style="width:100%;height:60px"></canvas>
+   <div class="lat" id="zlat">–</div>
+ </div>
+</div>
+<div class="fullpanel"><div class="ptitle b2">3 · Timeline (this session): committed stage · announced next stage · alarms</div>
+ <canvas id="tl" width="1150" height="70" style="width:100%;height:70px"></canvas></div>
+<div class="fullpanel"><div class="ptitle b3">Provenance — what is answering</div><div class="lat" id="prov">–</div>
+ <div class="note">Models are loaded once by the server from the files above; each browser session has its own twin state. The page never stores or replays outputs.</div></div>
+<div class="controls"><button class="sec" id="theme-toggle">🌙 Dark Mode</button></div>
+</div><script>
+const $=id=>document.getElementById(id);
+const tt=$('theme-toggle'); function isDark(){return document.body.classList.contains('dark-mode');}
+function upd(){tt.textContent=isDark()?'☀️ Light Mode':'🌙 Dark Mode';}
+tt.onclick=()=>{document.body.classList.toggle('dark-mode');try{localStorage.setItem('theme',isDark()?'dark':'light');}catch(e){}upd();};
+try{if(localStorage.getItem('theme')==='dark')document.body.classList.add('dark-mode');}catch(e){}upd();
+let INFO=null, SID=null, NAMES=[], COLORS=['#2E75B6','#BF9500','#C03030','#8B5CF6','#E07830','#64748B','#14B8A6','#EF4444'];
+const video=$('src'), seen=$('seen'), sctx=seen.getContext('2d',{willReadFrequently:true});
+const W=48,H=64; let queue=[], inflight=false, lastFrame=null, freeze=false, speed3=false, cap=0, sent=0, rtt=0, hist=[];
+async function connect(){
+  try{ INFO=await (await fetch('/info',{cache:'no-store'})).json(); NAMES=INFO.names; if(INFO.colors) COLORS=INFO.colors;
+    SID=(await (await fetch('/session',{method:'POST',body:'{}'})).json()).session;
+    $('banner').style.display='none';
+    $('prov').innerHTML=`<b>model</b> ${INFO.model==='cognitive'?'C-VL-JEPA (perception + cognition + memory in one checkpoint)':'VL-JEPA + next-stage twin (two checkpoints)'}<br><b>VL-JEPA encoder</b> ${INFO.vljepa_checkpoint.path} · sha256 ${INFO.vljepa_checkpoint.sha256} · ${INFO.params_vljepa.toLocaleString()} params · reasoning ${INFO.reasoning_layer}<br><b>cognitive twin</b> ${INFO.twin_checkpoint.path} · sha256 ${INFO.twin_checkpoint.sha256} · ${INFO.params_twin.toLocaleString()} params<br><b>clip</b> ${INFO.clip_span} raw frames (T=${INFO.config.T}, stride ${INFO.config.frame_stride}) at ${INFO.config.H}×${INFO.config.W} · thresholds order ${INFO.thresholds.order.toFixed(2)} time ${INFO.thresholds.time.toFixed(2)} evidence ${INFO.thresholds.evidence.toFixed(2)} grounding ${INFO.thresholds.grounding.toFixed(3)} · session ${SID}`;
+    buildCards(); setSource('demo');
+  }catch(e){ $('banner').innerHTML='No live server reachable — nothing is shown because nothing was computed. Start <code>python live_twin.py --serve</code> and open <code>http://127.0.0.1:8765/</code>.'; }
+}
+function buildCards(){ const c=$('cards'); c.innerHTML='';
+  for(let k=0;k<3;k++) c.innerHTML+=`<div class="card" id="card${k}"><b>+${k+1} · next stage</b><div class="nm" id="nm${k}">–</div><div class="eta" id="eta${k}">–</div><div class="p" id="p${k}"></div></div>`; }
+const cap_c=document.createElement('canvas'), cap_x=cap_c.getContext('2d');
+function grab(){ const vw=video.videoWidth, vh=video.videoHeight; if(!vw||!vh) return null;
+  const s=Math.min(1, 480/Math.max(vw,vh)), cw=Math.max(2,Math.round(vw*s/2)*2), ch=Math.max(2,Math.round(vh*s/2)*2);
+  if(cap_c.width!==cw||cap_c.height!==ch){ cap_c.width=cw; cap_c.height=ch; }
+  cap_x.drawImage(video,0,0,cw,ch); return cap_c.toDataURL('image/jpeg',0.85).split(',')[1]; }
+let capTimes=[];
+function onFrame(){ if(!SID||video.paused||video.ended) return; cap++; const now=performance.now(); capTimes.push(now); while(capTimes.length&&capTimes[0]<now-2000) capTimes.shift();
+  if(speed3 && cap%3!==0) return;
+  let f = freeze && lastFrame ? lastFrame : grab(); if(!f) return; lastFrame=f; queue.push(f); pump(); }
+function showInput(b64){ const raw=atob(b64); const img=sctx.createImageData(W,H); for(let i=0;i<W*H;i++){ const g=raw.charCodeAt(i); img.data[4*i]=img.data[4*i+1]=img.data[4*i+2]=g; img.data[4*i+3]=255; } sctx.putImageData(img,0,0); }
+async function pump(){ if(inflight||!queue.length||!SID) return; inflight=true; const batch=queue.splice(0,Math.min(queue.length,15)); const t0=performance.now();
+  try{ const r=await (await fetch('/observe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session:SID,jpegs:batch})})).json();
+    rtt=performance.now()-t0; sent+=batch.length; for(const x of r.results) if(x) show(x, r.ms_total/batch.length);
+  }catch(e){ $('banner').style.display='block'; $('banner').textContent='server error: '+e; }
+  inflight=false; if(queue.length) pump(); }
+function show(x, msPer){
+  const p=x.phase; $('chip').textContent = x.unfamiliar ? 'unfamiliar input · no stage committed' : `${NAMES[p]} · ${x.dwell_s.toFixed(1)} s in`; $('chip').style.background = x.unfamiliar ? '#666' : COLORS[p];
+  $('alarm').style.display=(x.alarm||x.alarm_active)?'inline-block':'none'; $('unf').style.display=x.unfamiliar?'inline-block':'none'; $('unk').style.display=x.unknown_process?'inline-block':'none';
+  for(let k=0;k<3;k++){ const it=x.plan[k]; const c=$('card'+k);
+    if(!it){ $('nm'+k).textContent='— (holding)'; $('eta'+k).textContent='–'; $('p'+k).textContent=''; c.style.borderTopColor='#bbb'; continue; }
+    if(it.phase<0){ $('nm'+k).textContent='END — no further stage expected'; $('nm'+k).style.color='#666'; $('eta'+k).textContent='–'; $('p'+k).textContent='the current stage has no observed successor'; c.style.borderTopColor='#666'; continue; }
+    c.style.borderTopColor=COLORS[it.phase]; $('nm'+k).textContent=it.name; $('nm'+k).style.color=COLORS[it.phase]; $('eta'+k).textContent=`in ${it.eta_s.toFixed(1)} s`;
+    $('p'+k).textContent=`p = ${it.p.toFixed(2)}`+(it.retrieved_frame!==null?` · looks like frame ${it.retrieved_frame} of the studied recording`:''); }
+  $('g-twin').style.width=(100*Math.min(x.score,2)/2).toFixed(0)+'%'; $('why').textContent=x.why||(x.unfamiliar?'':`surprise: order ${x.surprise.order.toFixed(2)} · overstay ${x.surprise.overstay.toFixed(2)} · understay ${x.surprise.understay.toFixed(2)} · evidence ${x.evidence.toFixed(2)}`);
+  $('narr').textContent=`window ${x.window} · frame ${x.frame} · raw perception ${NAMES[x.raw_phase]} (margin ${x.margin.toFixed(3)}${x.uncertain?', held':''}) · grounding ${x.grounding.toFixed(3)} · expected to end in ~${x.expected_remaining_s.toFixed(1)} s`+(x.switch&&x.switch.hit!==null?` · switch: ${x.switch.hit?'as announced ✓':'not as announced ✗'}`:'');
+  if(x.input) showInput(x.input);
+  const fps=capTimes.length/2; const warn = fps<24 ? ' ⚠ capture below the 30 fps the model expects (timing will stretch)' : '';
+  $('stat').textContent=`capture ${fps.toFixed(0)} fps · sent ${sent} · queue ${queue.length} · round trip ${rtt.toFixed(0)} ms · server ${x.ms_preprocess.toFixed(1)} ms ffmpeg + ${x.ms_encode.toFixed(1)} ms encode + ${x.ms_twin.toFixed(1)} ms twin${warn}`;
+  drawZ(x.latent); $('zlat').textContent='['+x.latent.slice(0,10).map(v=>v.toFixed(4)).join(', ')+', … ] · ‖z‖ = '+Math.sqrt(x.latent.reduce((a,b)=>a+b*b,0)).toFixed(4)+' · computed '+new Date().toLocaleTimeString();
+  hist.push({p:x.unfamiliar?-1:p, n:x.plan.length?x.plan[0].phase:-1, a:x.alarm}); drawTL(); }
+function drawZ(z){ const c=$('zbar'), x=c.getContext('2d'); x.fillStyle=isDark()?'#0f172a':'#fff'; x.fillRect(0,0,c.width,c.height); const bw=c.width/z.length, mid=c.height/2, sc=mid/Math.max(0.2,...z.map(Math.abs));
+  for(let i=0;i<z.length;i++){ const h=z[i]*sc; x.fillStyle=z[i]>=0?'#2E75B6':'#C03030'; x.fillRect(i*bw,mid-Math.max(h,0),Math.max(1,bw-1),Math.abs(h)); } x.strokeStyle='#999'; x.beginPath(); x.moveTo(0,mid); x.lineTo(c.width,mid); x.stroke(); }
+function drawTL(){ const c=$('tl'), x=c.getContext('2d'); x.fillStyle=isDark()?'#0f172a':'#fff'; x.fillRect(0,0,c.width,c.height); const n=hist.length, w=Math.max(1,c.width/Math.max(n,600));
+  for(let i=0;i<n;i++){ const h=hist[i], X=i*w; x.fillStyle=h.p<0?'#999':COLORS[h.p]; x.fillRect(X,6,Math.max(w,1),20); x.fillStyle=h.n<0?'#ddd':COLORS[h.n]+'88'; x.fillRect(X,30,Math.max(w,1),16); if(h.a){ x.fillStyle='#C03030'; x.fillRect(X,50,2,14); } }
+  x.fillStyle=isDark()?'#94a3b8':'#595959'; x.font='10px sans-serif'; x.fillText('committed',2,4); }
+function loop(){ if('requestVideoFrameCallback' in HTMLVideoElement.prototype){ const cb=()=>{ onFrame(); video.requestVideoFrameCallback(cb); }; video.requestVideoFrameCallback(cb); } else setInterval(onFrame,1000/30); }
+async function setSource(kind){ try{ if(video.srcObject){ for(const t of video.srcObject.getTracks()) t.stop(); video.srcObject=null; }
+  if(kind==='demo'){ video.src='/ur5_demo_360p.mp4'; video.loop=false; }
+  else if(kind==='cam'){ video.src=''; video.srcObject=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480}}); }
+  await resetTwin(); video.play().catch(()=>{}); }catch(e){ $('narr').textContent='source error: '+e; } }
+async function resetTwin(){ if(!SID) return; queue=[]; hist=[]; lastFrame=null; await fetch('/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session:SID})}); drawTL(); }
+$('b-demo').onclick=()=>setSource('demo'); $('b-cam').onclick=()=>setSource('cam'); $('b-file').onclick=()=>$('file').click();
+$('file').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; if(video.srcObject){ for(const t of video.srcObject.getTracks()) t.stop(); video.srcObject=null; } video.src=URL.createObjectURL(f); await resetTwin(); video.play().catch(()=>{}); };
+$('b-freeze').onclick=()=>{ freeze=!freeze; $('b-freeze').className=freeze?'':'sec'; $('b-freeze').textContent=freeze?'holding frame (click to release)':'hold frame'; };
+$('b-speed').onclick=()=>{ speed3=!speed3; $('b-speed').className=speed3?'':'sec'; };
+$('b-reset').onclick=resetTwin;
+video.addEventListener('seeked',resetTwin); video.addEventListener('play',()=>{ if(video.currentTime<0.05) resetTwin(); });
+connect(); loop();
+</script></body></html>

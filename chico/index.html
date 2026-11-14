@@ -1,0 +1,589 @@
+<meta charset="utf-8">
+<title>Unseen Robot Runs</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a control-room monitor. The player and its read-out sit side by side; the run register and the scoreboard sit below. */
+:root{
+  color-scheme:dark;
+  --bg:#0e141c; --panel:#151d28; --panel-2:#1b2532; --line:#2a3646; --fg:#e7ecf1; --muted:#9aa8b7; --faint:#6c7a8a;
+  --accent:#f0b43c; --ok:#0ca30c; --crit:#d03b3b; --crit-ink:#ff8a8a;
+  --s0:#3987e5; --s1:#d95926; --s2:#199e70; --s3:#c98500; --s4:#d55181;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){
+  color-scheme:light;
+  --bg:#f3f5f7; --panel:#ffffff; --panel-2:#eef1f4; --line:#d6dce3; --fg:#111821; --muted:#4f5b68; --faint:#7a8693;
+  --accent:#9a6400; --crit-ink:#b42828;
+  --s0:#2a78d6; --s1:#eb6834; --s2:#1baf7a; --s3:#eda100; --s4:#e87ba4;
+}}
+:root[data-theme="light"]{
+  color-scheme:light;
+  --bg:#f3f5f7; --panel:#ffffff; --panel-2:#eef1f4; --line:#d6dce3; --fg:#111821; --muted:#4f5b68; --faint:#7a8693;
+  --accent:#9a6400; --crit-ink:#b42828;
+  --s0:#2a78d6; --s1:#eb6834; --s2:#1baf7a; --s3:#eda100; --s4:#e87ba4;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.55 var(--body);margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:28px}
+h1,h2,h3{font-family:var(--display);font-weight:600;letter-spacing:.01em;text-wrap:balance;margin:0;line-height:1.05}
+h1{font-size:clamp(34px,5.4vw,58px)}
+h2{font-size:26px}
+h3{font-size:18px;letter-spacing:.03em}
+p{margin:0}
+.eyebrow{font:500 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.lede{color:var(--muted);max-width:68ch;font-size:16px}
+.head{display:grid;gap:12px}
+.mono,.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* tabs and chips */
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
+.seg button{border:0;background:transparent;padding:8px 14px;cursor:pointer;font-size:14px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--panel-2);color:var(--fg);box-shadow:inset 0 -2px 0 var(--accent)}
+.seg button:hover{color:var(--fg)}
+
+/* monitor */
+.monitor{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel)}
+.screen{position:relative;background:#000;aspect-ratio:1/1;max-width:100%}
+.screen video{width:100%;height:100%;display:block;object-fit:contain;background:#000}
+.tag{position:absolute;left:12px;top:12px;display:flex;gap:6px;flex-wrap:wrap}
+.pill{font:600 12px/1 var(--mono);letter-spacing:.06em;padding:6px 9px;border-radius:5px;background:rgba(10,14,20,.78);color:#e7ecf1;text-transform:uppercase}
+.pill.alt{background:repeating-linear-gradient(135deg,rgba(208,59,59,.92) 0 8px,rgba(150,30,30,.92) 8px 16px);color:#fff}
+.alarmflash{position:absolute;inset:auto 12px 12px 12px;padding:10px 12px;border-radius:8px;background:rgba(160,30,30,.94);color:#fff;font:500 13px/1.35 var(--body);display:flex;gap:10px;align-items:flex-start}
+.alarmflash svg{flex:none;margin-top:1px}
+.readout{padding:18px 20px;display:grid;gap:16px;align-content:start;min-width:0}
+.now{display:grid;gap:4px}
+.now .label{font:500 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.stagebig{display:flex;align-items:center;gap:10px;font:600 40px/1 var(--display);letter-spacing:.02em}
+.sw{width:14px;height:14px;border-radius:3px;flex:none}
+.versus{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cell{background:var(--panel-2);border-radius:8px;padding:10px 12px;display:grid;gap:4px;min-width:0}
+.cell .k{font:500 11px/1.2 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.cell .v{display:flex;align-items:center;gap:8px;font:600 20px/1.1 var(--display);letter-spacing:.02em;min-width:0}
+.match{font:500 12px/1 var(--mono);padding:3px 6px;border-radius:4px}
+.match.y{color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}
+.match.n{color:var(--crit-ink);background:color-mix(in srgb,var(--crit) 14%,transparent)}
+.probs{display:grid;gap:5px}
+.prow{display:grid;grid-template-columns:96px 1fr 44px;gap:8px;align-items:center;font:500 12px/1 var(--mono);color:var(--muted)}
+.ptrack{height:8px;background:var(--panel-2);border-radius:4px;overflow:hidden}
+.ptrack i{display:block;height:100%;border-radius:0 4px 4px 0}
+.gauges{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.gauge .k{display:flex;justify-content:space-between;font:500 11px/1.2 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-bottom:6px}
+.gtrack{position:relative;height:10px;background:var(--panel-2);border-radius:5px;overflow:hidden}
+.gtrack i{display:block;height:100%;background:var(--accent);border-radius:0 5px 5px 0}
+.gtrack i.hot{background:var(--crit)}
+.gtrack em{position:absolute;left:50%;top:0;bottom:0;width:2px;background:var(--fg);opacity:.5}
+.meta{font:400 12px/1.5 var(--mono);color:var(--faint)}
+
+/* timeline */
+.timeline{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:14px 16px;display:grid;gap:8px}
+.tl{width:100%;height:auto;display:block;cursor:pointer}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font:500 12px/1 var(--mono);color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+
+/* register */
+.register{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.run{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:10px;text-align:left;cursor:pointer;display:grid;gap:6px;min-width:0}
+.run:hover{border-color:var(--faint)}
+.run[aria-current="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.run .id{font:600 17px/1 var(--display);letter-spacing:.03em}
+.run .sub{font:400 11px/1.35 var(--mono);color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.run .row{display:flex;justify-content:space-between;align-items:center;font:500 12px/1 var(--mono);color:var(--muted)}
+.badge{font:600 11px/1 var(--mono);padding:3px 6px;border-radius:4px}
+.badge.al{background:color-mix(in srgb,var(--crit) 16%,transparent);color:var(--crit-ink)}
+.badge.ok{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+.badge.mu{background:var(--panel-2);color:var(--muted)}
+
+/* scoreboard */
+.score{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.stat{background:var(--panel);padding:16px;display:grid;gap:6px;align-content:start;min-width:0}
+.stat .k{font:500 11px/1.3 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.stat .v{font:600 34px/1 var(--display);letter-spacing:.01em}
+.stat .d{font-size:13px;color:var(--muted)}
+.cols{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:28px}
+.panel{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:18px;display:grid;gap:12px;min-width:0}
+.dots{width:100%;height:auto;display:block}
+.notes{display:grid;gap:10px;color:var(--muted);font-size:14px;max-width:72ch}
+.notes b{color:var(--fg);font-weight:600}
+#followup{max-width:none}
+.fwrap{overflow-x:auto;max-width:100%}
+.ftable .meta{white-space:nowrap}
+.ftable{border-collapse:collapse;width:100%;font-size:13px;color:var(--fg)}
+.ftable th,.ftable td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.ftable th{color:var(--muted);font-weight:600}
+.ftable td:first-child{font-weight:600}
+code{font:400 12.5px/1.5 var(--mono);background:var(--panel-2);padding:2px 5px;border-radius:4px;word-break:break-word}
+pre{margin:0;overflow-x:auto;background:var(--panel-2);border-radius:8px;padding:12px;font:400 12.5px/1.6 var(--mono)}
+.tip{position:fixed;pointer-events:none;background:var(--panel-2);border:1px solid var(--line);color:var(--fg);padding:8px 10px;border-radius:6px;font:400 12px/1.45 var(--mono);z-index:20;max-width:260px}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+.readout[hidden],.monitor [hidden]{display:none!important}
+.cg{width:100%;height:auto;display:block}
+.zone{font:600 12px/1 var(--mono);letter-spacing:.08em;padding:5px 8px;border-radius:5px;text-transform:uppercase}
+.zone.clear{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+.zone.close{background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent)}
+.zone.contact{background:color-mix(in srgb,var(--crit) 18%,transparent);color:var(--crit-ink)}
+.sk{font:500 12px/1 var(--mono);color:var(--muted)}
+@media (max-width:860px){.monitor{grid-template-columns:1fr}.cols{grid-template-columns:1fr}.score{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:420px){.versus,.gauges{grid-template-columns:1fr}.prow{grid-template-columns:84px 1fr 40px}.stagebig{font-size:32px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="head">
+    <div class="eyebrow">V-JEPA 2 · real-time twin · human–robot cell</div>
+    <h1>People and robots the model never saw</h1>
+    <p class="lede" id="lede">Each video below is a robot run held out from training, played through the real-time twin at its own speed on a laptop GPU. The twin names the stage, forecasts the next one, and raises an alarm when the process stalls. Where it falls short, this page says so. Its answers are shown beside what the robot's own gripper log says.</p>
+  </header>
+
+  <div class="bar" role="group" aria-label="Choose what to watch">
+    <div class="seg" id="dsTabs" role="group" aria-label="Dataset"></div>
+    <div class="seg" id="kindTabs" role="group" aria-label="Condition"></div>
+  </div>
+
+  <section class="monitor" aria-label="Player and read-out">
+    <div class="screen">
+      <video id="video" muted playsinline controls preload="auto"></video>
+      <div class="tag" id="tags"></div>
+      <div class="alarmflash" id="flash" hidden></div>
+    </div>
+    <div class="readout" id="roStage">
+      <div class="now">
+        <span class="label">Twin says</span>
+        <div class="stagebig" id="stage"><span class="sw"></span><span>Loading</span></div>
+        <span class="meta" id="dwell">&nbsp;</span>
+      </div>
+      <div class="versus">
+        <div class="cell"><span class="k">Robot log says</span><span class="v" id="truth">–</span></div>
+        <div class="cell"><span class="k">Next stage</span><span class="v" id="next">–</span></div>
+      </div>
+      <div class="probs" id="probs" aria-label="Classifier output for the current clip"></div>
+      <div class="gauges">
+        <div class="gauge"><div class="k"><span>Order surprise</span><span class="num" id="gOv">0.00</span></div><div class="gtrack"><i id="gO" style="width:0%"></i><em title="alarm level"></em></div></div>
+        <div class="gauge"><div class="k"><span>Stall clock</span><span class="num" id="gSv">0.00</span></div><div class="gtrack"><i id="gS" style="width:0%"></i><em title="alarm level"></em></div></div>
+      </div>
+      <p class="meta" id="tech">&nbsp;</p>
+    </div>
+    <div class="readout" id="roChico" hidden>
+      <div class="now">
+        <span class="label">Twin says the operator is doing</span>
+        <div class="stagebig" id="cTask"><span>Loading</span></div>
+        <span class="meta" id="cTaskNote">&nbsp;</span>
+      </div>
+      <div class="versus">
+        <div class="cell"><span class="k">Human–robot clearance now</span><span class="v" id="cNow">–</span></div>
+        <div class="cell"><span class="k">Closest in the next second</span><span class="v" id="cAhead">–</span></div>
+      </div>
+      <svg class="cg" id="cGauge" viewBox="0 0 400 74" role="img" aria-label="Clearance scale: twin and skeleton"></svg>
+      <div class="probs" id="cProbs" aria-label="Task classifier, averaged over the last seconds"></div>
+      <p class="meta" id="cTech">&nbsp;</p>
+    </div>
+  </section>
+
+  <section class="timeline" aria-label="Timeline of the run">
+    <div class="bar" style="justify-content:space-between"><h3>Timeline</h3><span class="meta" id="tlnote"></span></div>
+    <svg class="tl" id="tl" viewBox="0 0 1000 118" role="img" aria-label="Robot log, twin answers and alarms over time"></svg>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <section style="display:grid;gap:12px" aria-label="All test runs">
+    <div class="bar" style="justify-content:space-between"><h2 id="regTitle">Every unseen run</h2><span class="meta" id="regNote"></span></div>
+    <div class="register" id="register"></div>
+  </section>
+
+  <section style="display:grid;gap:14px" aria-label="Results">
+    <h2 id="scoreTitle">Results on the unseen runs</h2>
+    <div class="score" id="score"></div>
+  </section>
+
+  <section class="panel" id="followupPanel" hidden aria-label="Follow-up results">
+    <h3>Follow-up: making the warning earlier and more reliable (offline replay)</h3>
+    <div class="notes" id="followup"></div>
+  </section>
+
+  <section class="cols">
+    <div class="panel">
+      <h3 id="dotsTitle">Stage accuracy per unseen run, as recorded</h3>
+      <svg class="dots" id="dots" viewBox="0 0 640 150" role="img" aria-label="Per-run stage accuracy"></svg>
+      <p class="meta" id="dotsNote"></p>
+    </div>
+    <div class="panel">
+      <h3>What the twin knows, and where it came from</h3>
+      <div class="notes" id="how"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h3>How these numbers were made</h3>
+    <div class="notes" id="method"></div>
+  </section>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const KIND={normal:"As recorded",stall:"Robot stalls",skip:"Stage cut out"};
+const KIND_NOTE={normal:"Unedited test videos.",stall:"Test videos edited here: one frame of the carry is frozen until past the stall limit. The robot did not really stop.",skip:"Test videos edited here: the frames of the carry/holding stage are removed. The robot did not really skip it."};
+const DS_SHORT={ur5e:"UR5e · 30 fps",chico:"CHICO · human + cobot · 25 fps"};
+const CKIND={crash:"Collision sessions",normal:"Regular sessions"};
+const CKIND_NOTE={crash:"Sessions the CHICO authors marked _CRASH: unedited, the contacts really happened.",normal:"The other sessions of the same operators, unedited. Contacts can happen here too."};
+const kinds=()=>DS==="chico"?CKIND:KIND;
+const LEDE={stage:"Each video below is a robot run held out from training, played through the real-time twin at its own speed on a laptop GPU. The twin names the stage, forecasts the next one, and raises an alarm when the process stalls. Where it falls short, this page says so. Its answers are shown beside what the robot's own gripper log says.",
+ chico:"One operator works beside a KUKA LBR iiwa at a shared bench, with two more robots in view, filmed by a fixed camera. These operators were never seen in training. The twin names the task, estimates how close the person is to the robot, forecasts the closest approach one second ahead, and warns before contact. Its answers are shown beside the distance measured from the 3D skeletons."};
+const pct=v=>v==null?"–":(100*v).toFixed(1)+"%";
+const fmt=(v,d=1)=>v==null?"–":Number(v).toFixed(d);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const stageColor=i=>i<0?css("--faint"):css("--s"+i);
+let INDEX=null, DS="chico", KINDSEL="crash", RUN=null, DOC=null, raf=0;
+
+const ALARM_ICON='<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5 15 14H1z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 6v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="12" r=".9" fill="currentColor"/></svg>';
+
+async function boot(){
+  try{ INDEX=await (await fetch("index.json")).json(); }
+  catch(e){ document.querySelector(".wrap").insertAdjacentHTML("beforeend",'<p class="empty">The run data did not load. Reload the page.</p>'); return; }
+  try{ const h=location.hash.slice(1); if(h in INDEX.datasets) DS=h; }catch(e){}
+  buildTabs(); selectDataset(DS);
+  addEventListener("hashchange",()=>{const h=location.hash.slice(1); if(h in INDEX.datasets && h!==DS) selectDataset(h);});
+}
+
+function buildTabs(){
+  $("dsTabs").innerHTML=Object.keys(INDEX.datasets).map(k=>`<button data-ds="${k}" aria-pressed="false">${DS_SHORT[k]||k}</button>`).join("");
+  $("dsTabs").onclick=e=>{const b=e.target.closest("button"); if(b){ location.hash=b.dataset.ds; selectDataset(b.dataset.ds);} };
+  $("kindTabs").onclick=e=>{const b=e.target.closest("button"); if(b) selectKind(b.dataset.kind);};
+}
+
+function selectDataset(ds){
+  DS=ds;
+  for(const b of $("dsTabs").children) b.setAttribute("aria-pressed",b.dataset.ds===ds);
+  const K=kinds(); $("kindTabs").innerHTML=Object.keys(K).map(k=>`<button data-kind="${k}" aria-pressed="false">${K[k]}</button>`).join("");
+  if(!(KINDSEL in K)) KINDSEL=Object.keys(K)[0];
+  const ch=ds==="chico"; $("roStage").hidden=ch; $("roChico").hidden=!ch; $("lede").textContent=ch?LEDE.chico:LEDE.stage;
+  if(ch){ renderScoreChico(); renderDotsChico(); renderHowChico(); renderMethodChico(); }
+  else { renderScore(); renderDots(); renderHow(); renderMethod(); }
+  renderFollowupChico(ch);
+  selectKind(KINDSEL);
+}
+
+function selectKind(kind){
+  KINDSEL=kind;
+  for(const b of $("kindTabs").children) b.setAttribute("aria-pressed",b.dataset.kind===kind);
+  const items=INDEX.datasets[DS].items.filter(i=>i.kind===kind).sort((a,b)=>DS==="chico"?(a.subject+a.task).localeCompare(b.subject+b.task):a.run-b.run);
+  if(DS==="chico") renderRegisterChico(items); else renderRegister(items);
+  if(items.length) openRun(items[0].name); else { $("register").innerHTML='<p class="empty">No runs in this condition.</p>'; }
+}
+
+function itemScore(it){
+  const rep=INDEX.datasets[DS].report;
+  if(it.kind==="normal"){ const r=rep.normal.per_run.find(x=>x.run===it.run); return r?{acc:r.accuracy_now,alarms:r.alarms.length,backed:(r.backed_by_log||[]).filter(Boolean).length}:{}; }
+  const r=(rep[it.kind]||{per_run:[]}).per_run.find(x=>x.run===it.run); return r?{detected:r.detected,latency:r.latency_s,early:r.alarms_before_onset}:{};
+}
+
+function renderRegister(items){
+  const d=INDEX.datasets[DS];
+  $("regTitle").textContent=`Every unseen run · ${items.length} ${KIND[KINDSEL].toLowerCase()}`;
+  $("regNote").textContent=KIND_NOTE[KINDSEL];
+  $("register").innerHTML=items.map(it=>{
+    const s=itemScore(it); let right="";
+    if(it.kind==="normal"){ const fa=(s.alarms||0)-(s.backed||0);
+      right=fa>0?`<span class="badge al">${fa} false alarm${fa>1?"s":""}</span>`:(s.backed?`<span class="badge mu">${s.backed} long stage</span>`:`<span class="badge ok">no false alarm</span>`); }
+    else right=s.detected?`<span class="badge ok">caught +${fmt(s.latency)} s</span>`:`<span class="badge al">missed</span>`;
+    const left=it.kind==="normal"?`<span>${pct(s.acc)}</span>`:`<span>${it.seconds} s</span>`;
+    return `<button class="run" data-name="${it.name}" aria-current="false"><span class="id">Run ${it.run}</span><span class="sub" title="${it.task}">${it.task}</span><span class="row">${left}${right}</span></button>`;
+  }).join("");
+  $("register").onclick=e=>{const b=e.target.closest(".run"); if(b) openRun(b.dataset.name);};
+}
+
+let VURL=null;
+async function openRun(name){
+  RUN=name;
+  for(const b of $("register").children) b.setAttribute("aria-current",b.dataset.name===name);
+  let blob=null;
+  try{ const [d,b]=await Promise.all([fetch(`runs/${name}.json`).then(r=>r.json()), fetch(`video/${name}.mp4`).then(r=>r.ok?r.blob():null).catch(()=>null)]); DOC=d; blob=b; }
+  catch(e){ $("stage").innerHTML='<span>Could not load this run</span>'; return; }
+  if(RUN!==name) return;
+  // the whole clip in memory, so seeking works whatever the host does with range requests
+  const v=$("video"); if(VURL) URL.revokeObjectURL(VURL); VURL=blob?URL.createObjectURL(blob):null; v.src=VURL||`video/${name}.mp4`; v.load();
+  const ds=INDEX.datasets[DS];
+  if(DS==="chico"){ $("tags").innerHTML=`<span class="pill">CHICO · 25 fps</span><span class="pill">Operator ${DOC.subject.slice(1)}</span>`+(DOC.crash?`<span class="pill">_CRASH session</span>`:""); drawTimelineChico(); }
+  else { $("tags").innerHTML=`<span class="pill">${DS_SHORT[DS]}</span><span class="pill">Run ${DOC.run}</span>`+(DOC.kind!=="normal"?`<span class="pill alt">${KIND[DOC.kind]} · edited video</span>`:""); drawTimeline(); }
+  update(0);
+  v.onplay=()=>{cancelAnimationFrame(raf); const loop=()=>{update(v.currentTime); if(!v.paused&&!v.ended) raf=requestAnimationFrame(loop);}; loop();};
+  v.onseeked=v.ontimeupdate=()=>update(v.currentTime);
+}
+
+function rowAt(t){ const R=DOC.rows; let lo=0,hi=R.length-1,ans=-1; while(lo<=hi){const m=(lo+hi)>>1; if(R[m].t<=t+1e-6){ans=m;lo=m+1;}else hi=m-1;} return ans; }
+
+function update(t){
+  if(!DOC) return;
+  if(DOC.dataset==="chico") return updateChico(t);
+  const names=INDEX.datasets[DS].stages, i=rowAt(t), r=i>=0?DOC.rows[i]:null;
+  const truth=DOC.truth[Math.min(DOC.truth.length-1,Math.max(0,Math.round(t*DOC.fps)))];
+  $("truth").innerHTML=`<span class="sw" style="background:${stageColor(truth)}"></span><span>${names[truth]}</span>`;
+  if(!r||r.s<0){
+    $("stage").innerHTML=`<span class="sw" style="background:${css("--faint")}"></span><span>Watching…</span>`;
+    $("dwell").textContent=r?"":`The first clip ends ${fmt(DOC.rows.length?DOC.rows[0].t:0)} s into the video.`;
+    $("next").textContent="–"; $("probs").innerHTML=probsHTML(null,names); gauges(0,0); $("tech").innerHTML="&nbsp;"; $("flash").hidden=true; drawHead(t); return;
+  }
+  const ok=r.s===truth;
+  $("stage").innerHTML=`<span class="sw" style="background:${stageColor(r.s)}"></span><span>${names[r.s]}</span><span class="match ${ok?"y":"n"}">${ok?"matches log":"differs"}</span>`;
+  $("dwell").textContent=`${fmt(r.dw)} s in this stage · latent from ${fmt(r.age,2)} s ago${r.h?" (held)":""}`;
+  $("next").innerHTML=r.next==null||r.next<0?`<span>END</span>`:`<span class="sw" style="background:${stageColor(r.next)}"></span><span>${names[r.next]}</span><span class="num" style="font:500 13px var(--mono);color:var(--muted)">in ${fmt(r.eta)} s</span>`;
+  $("probs").innerHTML=probsHTML(r.p,names);
+  gauges(r.o,r.st);
+  const recent=DOC.rows.slice(0,i+1).filter(x=>x.a).slice(-1)[0];
+  if(recent && t-recent.t<4){ $("flash").innerHTML=ALARM_ICON+`<span><b>ALARM</b> at ${fmt(recent.t)} s · ${recent.why}</span>`; $("flash").hidden=false; } else $("flash").hidden=true;
+  $("tech").textContent=`tick ${fmt(r.t)} s${r.u?" · scene unfamiliar":""}`;
+  drawHead(t);
+}
+
+function probsHTML(p,names){
+  return names.map((n,k)=>{const v=p?p[k]:0; return `<div class="prow"><span>${n}</span><span class="ptrack"><i style="width:${(100*v).toFixed(0)}%;background:${stageColor(k)}"></i></span><span class="num" style="text-align:right">${p?v.toFixed(2):"–"}</span></div>`;}).join("");
+}
+function gauges(o,s){
+  const set=(id,v)=>{const el=$(id); el.style.width=Math.min(100,50*v).toFixed(0)+"%"; el.classList.toggle("hot",v>=1); $(id+"v").textContent=v.toFixed(2);};
+  set("gO",o||0); set("gS",s||0);
+}
+
+/* timeline: robot log band, twin band, alarms, playhead */
+function segs(values,times){ const out=[]; let a=0; for(let k=1;k<=values.length;k++){ if(k===values.length||values[k]!==values[a]){ out.push([times[a],k<values.length?times[k]:null,values[a]]); a=k; } } return out; }
+function drawTimeline(){
+  const names=INDEX.datasets[DS].stages, dur=DOC.truth.length/DOC.fps, X=t=>40+940*t/dur, svg=$("tl");
+  const tt=DOC.truth.map((_,k)=>k/DOC.fps);
+  let h=`<text x="0" y="22" fill="${css("--muted")}" font-family="IBM Plex Mono, monospace" font-size="11">LOG</text><text x="0" y="56" fill="${css("--muted")}" font-family="IBM Plex Mono, monospace" font-size="11">TWIN</text>`;
+  for(const [a,b,v] of segs(DOC.truth,tt)) h+=`<rect x="${X(a)}" y="10" width="${Math.max(0,X(b??dur)-X(a)-1)}" height="18" rx="2" fill="${stageColor(v)}"/>`;
+  const R=DOC.rows; if(R.length){ const vals=R.map(r=>r.s), times=R.map(r=>r.t);
+    for(const [a,b,v] of segs(vals,times)) if(v>=0) h+=`<rect x="${X(a)}" y="44" width="${Math.max(0,X(b??dur)-X(a)-1)}" height="18" rx="2" fill="${stageColor(v)}"/>`; }
+  if(DOC.onset_s!=null) h+=`<line x1="${X(DOC.onset_s)}" x2="${X(DOC.onset_s)}" y1="4" y2="92" stroke="${css("--fg")}" stroke-dasharray="3 3" stroke-width="1.5"/><text x="${Math.min(X(DOC.onset_s)+4,880)}" y="102" fill="${css("--fg")}" font-family="IBM Plex Mono, monospace" font-size="11">video edited here</text>`;
+  for(const r of R.filter(r=>r.a)) h+=`<g><path d="M${X(r.t)} 70 l6 11 h-12z" fill="${css("--crit")}"/><title>${fmt(r.t)} s · ${r.why}</title></g>`;
+  for(let s=0;s<=dur;s+=dur>40?10:5) h+=`<text x="${X(s)}" y="114" fill="${css("--faint")}" font-family="IBM Plex Mono, monospace" font-size="10" text-anchor="middle">${s}s</text>`;
+  h+=`<line id="head" x1="40" x2="40" y1="4" y2="92" stroke="${css("--accent")}" stroke-width="2"/>`;
+  svg.innerHTML=h;
+  svg.setAttribute("viewBox","0 0 1000 118");
+  svg.onclick=e=>{const b=svg.getBoundingClientRect(); const t=((e.clientX-b.left)/b.width*1000-40)/940*dur; if(t>=0&&t<=dur){ $("video").currentTime=t; update(t);} };
+  $("legend").innerHTML=names.map((n,k)=>`<span><i class="sw" style="background:${stageColor(k)}"></i>${n}</span>`).join("")+`<span><svg width="12" height="11" aria-hidden="true"><path d="M6 0 12 11H0z" fill="${css("--crit")}"/></svg>alarm</span>`;
+  const al=R.filter(r=>r.a).length;
+  $("tlnote").textContent=`${fmt(dur)} s · ${R.length} answers · ${al} alarm${al===1?"":"s"} · click to jump`;
+}
+function drawHead(t){ const el=document.getElementById("head"); if(!el||!DOC) return; const n=(DOC.truth||DOC.clearance).length; const x=40+940*t/(n/DOC.fps); el.setAttribute("x1",x); el.setAttribute("x2",x); }
+
+/* scoreboard */
+function renderScore(){
+  const d=INDEX.datasets[DS], r=d.report, n=r.normal;
+  $("scoreTitle").textContent=`Results on ${r.test_runs} unseen runs · ${d.title}`;
+  const fa=n.false_alarms, st=r.stall, sk=r.skip;
+  const tiles=[
+    ["Stage, at the moment of answer",pct(n.stage_accuracy_now.mean),`95% CI ${pct(n.stage_accuracy_now.ci95[0])}–${pct(n.stage_accuracy_now.ci95[1])} over runs`],
+    ["Stage, for the frames it saw",pct(n.stage_accuracy_vs_frames_seen),`answers are about ${fmt(n.latent_age_s_median,2)} s behind the video`],
+    ["Next stage forecast",pct(n.next_stage_forecast_accuracy),`the stage it named as next, just before each change. ${n.switches_caught} of ${n.switches_total} changes were caught, median ${fmt(n.switch_delay_s_median)} s late`],
+    ["False alarms, as recorded",`${fa}`,`${n.runs_with_false_alarm} of ${r.test_runs} runs; ${n.alarms_backed_by_log} more alarm${n.alarms_backed_by_log===1?"":"s"} matched a stage the log shows really ran long`],
+    ["Stalls caught",`${st.detected}/${st.runs}`,`median ${fmt(st.latency_s_median)} s after the freeze began; the limit itself is ${"1.2 × longest training visit + 1 s"}`],
+    ["Cut-out stages caught",`${sk.detected}/${sk.runs}`,(sk.detected?`median ${fmt(sk.latency_s_median)} s after the cut. `:"")+"Weak: see Limits"],
+    ["Encoder per clip",`${fmt(n.ms_encode_median,0)} ms`,`V-JEPA 2 ViT-L, 224 px, 4 frames, half precision, on a laptop GPU`],
+    ["Answers reusing a held latent",pct(n.held_share),`a tick every 0.2 s; the newest frames are always encoded next`],
+  ];
+  $("score").innerHTML=tiles.map(([k,v,dd])=>`<div class="stat"><span class="k">${k}</span><span class="v num">${v}</span><span class="d">${dd}</span></div>`).join("");
+}
+
+/* per-run accuracy dot strip */
+function renderDots(){
+  const r=INDEX.datasets[DS].report, runs=r.normal.per_run.slice().sort((a,b)=>a.accuracy_now-b.accuracy_now), svg=$("dots");
+  const X=v=>40+580*v, ink=css("--muted"), faint=css("--line");
+  let h="";
+  for(const v of [0,.25,.5,.75,1]) h+=`<line x1="${X(v)}" x2="${X(v)}" y1="18" y2="112" stroke="${faint}"/><text x="${X(v)}" y="130" fill="${ink}" font-family="IBM Plex Mono, monospace" font-size="11" text-anchor="middle">${v*100}%</text>`;
+  const mean=r.normal.stage_accuracy_now.mean, ci=r.normal.stage_accuracy_now.ci95;
+  h+=`<rect x="${X(ci[0])}" y="56" width="${X(ci[1])-X(ci[0])}" height="20" rx="3" fill="${css("--accent")}" opacity=".22"/><line x1="${X(mean)}" x2="${X(mean)}" y1="48" y2="84" stroke="${css("--accent")}" stroke-width="2"/>`;
+  runs.forEach((p,k)=>{ const y=30+((k%5)*16); const fa=p.alarms.length-(p.backed_by_log||[]).filter(Boolean).length;
+    h+=`<circle class="dot" data-k="${k}" cx="${X(p.accuracy_now)}" cy="${y}" r="6" fill="${fa>0?css("--crit"):css("--s0")}" stroke="${css("--panel")}" stroke-width="2" style="cursor:pointer"/>`; });
+  svg.innerHTML=h;
+  $("dotsTitle").textContent="Stage accuracy per unseen run, as recorded"; $("dots").setAttribute("viewBox","0 0 640 150");
+  $("dotsNote").textContent=`Each dot is one unseen run, as recorded (red: at least one false alarm). Band: mean ${pct(mean)} with its 95% interval over runs. Click a dot to watch the run.`;
+  const tip=$("tip");
+  svg.onmousemove=e=>{const c=e.target.closest(".dot"); if(!c){tip.hidden=true;return;} const p=runs[+c.dataset.k]; tip.innerHTML=`Run ${p.run}<br>${pct(p.accuracy_now)} stage accuracy<br>${p.alarms.length} alarm(s)${p.alarms.length?": "+p.reasons.join(", "):""}`; tip.hidden=false; tip.style.left=(e.clientX+14)+"px"; tip.style.top=(e.clientY+14)+"px";};
+  svg.onmouseleave=()=>tip.hidden=true;
+  svg.onclick=e=>{const c=e.target.closest(".dot"); if(!c) return; const p=runs[+c.dataset.k]; selectKind("normal"); openRun(`${DS}_normal_${p.run}`); $("video").scrollIntoView({behavior:"smooth",block:"center"});};
+}
+
+function renderHow(){
+  const d=INDEX.datasets[DS], tw=d.report.twin, v=tw.validation;
+  const order=Object.keys(tw.transitions).join(", ").replaceAll("->"," → ");
+  const dur=Object.entries(tw.median_s).filter(([k,x])=>x>0).map(([k,x])=>`${k} ${x} s (longest ${tw.longest_s[k]} s)`).join("; ");
+  $("how").innerHTML=`<p><b>Order of stages</b>, from ${tw.train_runs.length} training runs: ${order}.</p>
+  <p><b>Typical stage lengths</b> (median): ${dur}.</p>
+  <p><b>Perception</b>: the frozen V-JEPA 2 encoder and a linear classifier trained on ${tw.training_ticks.toLocaleString()} training clips, one every 0.2 s, each labelled with the stage of its newest frame.</p>
+  <p><b>Alarm levels</b> were set on held-out training runs (5 folds), never on test runs: the order alarm fires above ${fmt(v.theta,2)}, the lowest level no normal held-out run reached. On those held-out runs it caught ${v.skip_detected_at_theta} of ${v.skip_runs} cut-out stages, but that check removed stages from the per-tick features, not from the video, and it turned out far too hopeful (see Limits).</p>`;
+}
+
+function renderMethod(){
+  const d=INDEX.datasets[DS], tw=d.report.twin;
+  $("method").innerHTML=`<p><b>Data.</b> UR5e: <code>sk1700/Ur10e_Pickplace</code>, front camera, fixed, 30 fps. Stages come from the robot's gripper log, not from a person. The split into training and test runs is the one used in this project's earlier studies.</p>
+  <p><b>Replay, not re-computation.</b> Each video was pushed frame by frame, at its own frame rate on the wall clock, through the same real-time engine as the live page. The answers on this page are the ones it gave then, read from <code>outputs_static_cam/&lt;dataset&gt;/runs/*.json</code>; this page computes nothing. Twin file sha256 <code>${DOC?DOC.twin_sha256.slice(0,16):""}…</code>.</p>
+  <p><b>Edited videos.</b> "Robot stalls" and "Stage cut out" are test videos edited by <code>static_cam_twin.py</code> to make an abnormal run. They are marked as edited wherever they appear.</p>
+  <p><b>Seen before the rules were fixed.</b> An earlier version of the alarm rules was played on test run 19 before it was replaced. It raised three alarms there, and that result is why the rules were replaced. No other test run was played before the final rules were set.</p>
+  <p><b>Limits.</b> One robot cell with a fixed camera; nothing here shows the twin works in a cell it was not trained on. On UR5e the arm looks much the same approaching the part and returning without it, which is the main source of stage errors there.</p>
+  <p><b>Cut-out stages are mostly missed.</b> Each clip spans about a second, so for a moment after a cut every clip mixes frames from before the grasp with frames from after the release. The classifier reads that blend as a plausible carry stage, so the order looks legal. After seeing this on the test runs, two extra detectors were tried on training runs only: a jump between consecutive encodings, and a learned next-encoding predictor. Neither separated cuts from normal motion well enough, so neither was added. The cut-out numbers above are from the rules as fixed beforehand.</p>
+  <pre>python static_cam_dense.py
+python static_cam_twin.py fit
+python static_cam_twin.py play
+python static_cam_site.py</pre>`;
+}
+
+/* ───────────── CHICO: one operator beside a cobot ───────────── */
+const C=()=>INDEX.datasets.chico;
+const mm=v=>v==null?"–":`${Math.round(v)} mm`;
+function zoneOf(v){ const c=C(); return v<c.warn_mm?"contact":(v<300?"close":"clear"); }
+const ZONE={clear:"Clear",close:"Close",contact:"Contact risk"};
+
+function renderRegisterChico(items){
+  const c=C();
+  $("regTitle").textContent=`Every unseen session · ${items.length} ${CKIND[KINDSEL].toLowerCase()}`;
+  $("regNote").textContent=CKIND_NOTE[KINDSEL];
+  $("register").innerHTML=items.map(it=>{
+    const fa=it.kinds.filter(k=>k==="false").length, nm=it.kinds.filter(k=>k==="near_miss").length;
+    const left=it.events?`<span>${it.caught}/${it.events} contact${it.events>1?"s":""} warned</span>`:`<span>no contact</span>`;
+    const right=fa?`<span class="badge al">${fa} false</span>`:(nm?`<span class="badge mu">${nm} near miss</span>`:(it.events&&it.caught<it.events?`<span class="badge al">missed</span>`:`<span class="badge ok">clean</span>`));
+    return `<button class="run" data-name="${it.name}" aria-current="false"><span class="id">Operator ${it.subject.slice(1)}</span><span class="sub" title="${c.tasks[it.task]}">${c.tasks[it.task]}</span><span class="row">${left}${right}</span></button>`;
+  }).join("");
+  $("register").onclick=e=>{const b=e.target.closest(".run"); if(b) openRun(b.dataset.name);};
+}
+
+function updateChico(t){
+  const c=C(), i=rowAt(t), r=i>=0?DOC.rows[i]:null, k=Math.min(DOC.clearance.length-1,Math.max(0,Math.round(t*DOC.fps)));
+  const truthNow=DOC.clearance[k];
+  if(!r){
+    $("cTask").innerHTML=`<span>Watching…</span>`; $("cTaskNote").textContent=`The first clip ends ${fmt(DOC.rows.length?DOC.rows[0].t:0)} s into the video. True task: ${c.tasks[DOC.task]}.`;
+    $("cNow").innerHTML=`– <span class="sk">skeleton ${mm(truthNow)}</span>`; $("cAhead").textContent="–"; $("cProbs").innerHTML=chicoProbs(null); gaugeChico(null,truthNow,null); $("cTech").innerHTML="&nbsp;"; $("flash").hidden=true; drawHead(t); return;
+  }
+  const ok=r.k===DOC.task;
+  $("cTask").innerHTML=`<span style="font-size:.78em">${c.tasks[r.k]}</span><span class="match ${ok?"y":"n"}">${ok?"right task":"wrong task"}</span>`;
+  $("cTaskNote").textContent=ok?`latent from ${fmt(r.age,2)} s ago${r.h?" (held)":""}`:`true task: ${c.tasks[DOC.task]} · latent from ${fmt(r.age,2)} s ago`;
+  $("cNow").innerHTML=`<span>${mm(r.cn)}</span><span class="sk">skeleton ${mm(r.tn)}</span>`;
+  $("cAhead").innerHTML=`<span>${mm(r.ca)}</span><span class="zone ${zoneOf(Math.min(r.cn,r.ca))}">${ZONE[zoneOf(Math.min(r.cn,r.ca))]}</span>`;
+  $("cProbs").innerHTML=chicoProbs(r.p);
+  gaugeChico(r.cn,r.tn,r.ca);
+  const recent=DOC.rows.slice(0,i+1).filter(x=>x.a).slice(-1)[0];
+  if(recent && t-recent.t<3){ $("flash").innerHTML=ALARM_ICON+`<span><b>WARNING</b> at ${fmt(recent.t)} s · ${recent.why}</span>`; $("flash").hidden=false; } else $("flash").hidden=true;
+  $("cTech").textContent=`tick ${fmt(r.t)} s · skeleton closest in the next second: ${mm(r.ta)}`;
+  drawHead(t);
+}
+function chicoProbs(p){
+  const c=C();
+  return c.tasks.map((n,k)=>{const v=p?p[k]:0, me=k===DOC.task; return `<div class="prow" style="grid-template-columns:150px 1fr 40px"><span style="${me?"color:var(--fg)":""};overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${n}">${me?"▸ ":""}${n}</span><span class="ptrack"><i style="width:${(100*v).toFixed(0)}%;background:var(--s0)"></i></span><span class="num" style="text-align:right">${p?v.toFixed(2):"–"}</span></div>`;}).join("");
+}
+function gaugeChico(now,truth,ahead){
+  const c=C(), M=900, X=v=>16+368*Math.min(v,M)/M, svg=$("cGauge"), mono='font-family="IBM Plex Mono, monospace" font-size="10"';
+  let h=`<rect x="16" y="26" width="368" height="10" rx="3" fill="${css("--panel-2")}"/>`;
+  h+=`<rect x="16" y="26" width="${X(c.contact_mm)-16}" height="10" rx="3" fill="${css("--crit")}" opacity=".55"/>`;
+  h+=`<rect x="${X(c.contact_mm)}" y="26" width="${X(c.warn_mm)-X(c.contact_mm)}" height="10" fill="${css("--accent")}" opacity=".35"/>`;
+  for(const v of [0,300,600,900]) h+=`<text x="${X(v)}" y="70" fill="${css("--faint")}" ${mono} text-anchor="middle">${v}${v===900?"+ mm":""}</text>`;
+  h+=`<text x="${X(c.contact_mm)}" y="52" fill="${css("--crit-ink")}" ${mono} text-anchor="middle">contact</text>`;
+  if(truth!=null) h+=`<line x1="${X(truth)}" x2="${X(truth)}" y1="22" y2="40" stroke="${css("--fg")}" stroke-width="2"/><text x="${X(truth)}" y="16" fill="${css("--muted")}" ${mono} text-anchor="middle">skeleton</text>`;
+  if(ahead!=null) h+=`<circle cx="${X(ahead)}" cy="31" r="5" fill="none" stroke="${css("--s0")}" stroke-width="2"><title>forecast, next second</title></circle>`;
+  if(now!=null) h+=`<path d="M${X(now)} 40 l6 9 h-12z" fill="${css("--s0")}"><title>twin, now</title></path>`;
+  svg.innerHTML=h;
+}
+
+function drawTimelineChico(){
+  const c=C(), n=DOC.clearance.length, dur=n/DOC.fps, X=t=>40+940*t/dur, M=900, Y=v=>12+86*(1-Math.min(v,M)/M), svg=$("tl");
+  svg.setAttribute("viewBox","0 0 1000 132");
+  const mono='font-family="IBM Plex Mono, monospace"';
+  let h="";
+  for(const [a,b] of DOC.events) h+=`<rect x="${X(a)}" y="8" width="${Math.max(2,X(b)-X(a))}" height="94" fill="${css("--crit")}" opacity=".22"/>`;
+  for(const v of [0,300,600,900]) h+=`<line x1="40" x2="980" y1="${Y(v)}" y2="${Y(v)}" stroke="${css("--line")}"/><text x="34" y="${Y(v)+3}" fill="${css("--faint")}" ${mono} font-size="10" text-anchor="end">${v}</text>`;
+  h+=`<line x1="40" x2="980" y1="${Y(c.warn_mm)}" y2="${Y(c.warn_mm)}" stroke="${css("--accent")}" stroke-dasharray="4 3"/>`;
+  h+=`<line x1="40" x2="980" y1="${Y(c.contact_mm)}" y2="${Y(c.contact_mm)}" stroke="${css("--crit")}" stroke-dasharray="2 3"/>`;
+  let p=""; for(let k=0;k<n;k+=2) p+=(k?"L":"M")+X(k/DOC.fps).toFixed(1)+" "+Y(DOC.clearance[k]).toFixed(1);
+  h+=`<path d="${p}" fill="none" stroke="${css("--fg")}" stroke-width="1.5" opacity=".75"/>`;
+  let q=""; DOC.rows.forEach((r,k)=>q+=(k?"L":"M")+X(r.t).toFixed(1)+" "+Y(r.cn).toFixed(1));
+  h+=`<path d="${q}" fill="none" stroke="${css("--s0")}" stroke-width="2"/>`;
+  for(const r of DOC.rows.filter(r=>r.a)) h+=`<g><path d="M${X(r.t)} 104 l6 11 h-12z" fill="${css("--crit")}"/><title>${fmt(r.t)} s · ${r.why}</title></g>`;
+  for(let s=0;s<=dur;s+=10) h+=`<text x="${X(s)}" y="128" fill="${css("--faint")}" ${mono} font-size="10" text-anchor="middle">${s}s</text>`;
+  h+=`<line id="head" x1="40" x2="40" y1="6" y2="104" stroke="${css("--accent")}" stroke-width="2"/>`;
+  svg.innerHTML=h;
+  svg.onclick=e=>{const b=svg.getBoundingClientRect(); const t=((e.clientX-b.left)/b.width*1000-40)/940*dur; if(t>=0&&t<=dur){ $("video").currentTime=t; update(t);} };
+  $("legend").innerHTML=`<span><i class="sw" style="background:${css("--fg")};height:3px"></i>skeleton clearance (mm)</span><span><i class="sw" style="background:${css("--s0")};height:3px"></i>twin, now</span><span><i class="sw" style="background:${css("--crit")};opacity:.35"></i>contact (&lt; ${c.contact_mm} mm)</span><span><i class="sw" style="background:${css("--accent")};height:2px"></i>warning level ${Math.round(c.warn_mm)} mm</span><span><svg width="12" height="11" aria-hidden="true"><path d="M6 0 12 11H0z" fill="${css("--crit")}"/></svg>warning</span>`;
+  const al=DOC.rows.filter(r=>r.a).length;
+  $("tlnote").textContent=`${fmt(dur)} s · ${DOC.events.length} contact${DOC.events.length===1?"":"s"} · ${al} warning${al===1?"":"s"} · click to jump`;
+}
+
+function renderScoreChico(){
+  const c=C(), r=c.report, a=r.all, cr=r.crash_recordings;
+  $("scoreTitle").textContent=`Results on ${a.recordings} sessions of 4 unseen operators · ${c.title}`;
+  const tiles=[
+    ["Task named correctly",pct(a.task_accuracy),`share of answers after the first ${r.twin.rules.task_tau_s} s; chance is ${pct(r.chance_task_accuracy)}. Final answer right in ${a.task_final_correct} of ${a.recordings} sessions`],
+    ["Clearance error",`${fmt(a.mae_now_mm,0)} mm`,`mean absolute error at the moment of answer; always guessing the training median gives ${fmt(r.baseline_constant_mae_mm,0)} mm`],
+    ["Contacts warned",`${a.contacts_caught}/${a.contacts}`,a.lead_s_median==null?"":`${a.lead_s_before_contact} of them before the contact began; median ${fmt(a.lead_s_median)} s ahead`],
+    ["Warnings",`${a.alarms}`,`${a.alarms_contact} at a contact · ${a.alarms_near_miss} at a near miss (&lt; ${r.twin.rules.near_miss_mm} mm) · ${a.alarms_false} false`],
+    ["False warnings per minute",fmt(a.false_alarms_per_min,2),`over ${fmt(a.minutes)} minutes of unseen video`],
+    ["In _CRASH sessions",`${cr.contacts_caught}/${cr.contacts}`,`contacts warned in the sessions marked _CRASH`],
+    ["Encoder per clip",`${fmt(r.ms_encode_median,0)} ms`,`V-JEPA 2 ViT-L, 224 px, 4 frames, half precision, on a laptop GPU`],
+    ["Answers behind the video",`${fmt(r.latent_age_s_median,2)} s`,`median age of the latent behind each answer; ${pct(r.held_share)} of answers reused a held latent`],
+  ];
+  $("score").innerHTML=tiles.map(([k,v,dd])=>`<div class="stat"><span class="k">${k}</span><span class="v num">${v}</span><span class="d">${dd}</span></div>`).join("");
+}
+
+function renderDotsChico(){
+  const c=C(), per=c.report.per_recording, svg=$("dots"), pts=[];
+  for(const [name,s] of Object.entries(per)) s.events.forEach((e,j)=>{ const hit=s.caught[j]; let lead=null; if(hit){ const on=s.alarms.find(t=>t>=e[0]-c.report.twin.rules.match_before_s-1e-9 && t<=e[1]+0.5); lead=e[0]-on; } pts.push({name,start:e[0],min:e[2],hit,lead}); });
+  $("dotsTitle").textContent="Warning time for every contact in unseen video";
+  svg.setAttribute("viewBox","0 0 640 150");
+  const X=v=>130+480*(v+1.5)/4, ink=css("--muted"), faint=css("--line"), mono='font-family="IBM Plex Mono, monospace" font-size="11"';
+  let h=`<text x="60" y="130" fill="${ink}" ${mono} text-anchor="middle">missed</text><line x1="100" x2="100" y1="18" y2="112" stroke="${faint}"/>`;
+  for(const v of [-1.5,-1,0,1,2,2.5]) h+=`<line x1="${X(v)}" x2="${X(v)}" y1="18" y2="112" stroke="${faint}" ${v===0?'stroke-width="2"':''}/><text x="${X(v)}" y="130" fill="${ink}" ${mono} text-anchor="middle">${v>0?"+":""}${v}s</text>`;
+  h+=`<text x="${X(0)+4}" y="14" fill="${ink}" ${mono}>contact begins → earlier warnings to the right</text>`;
+  const missed=pts.filter(p=>!p.hit), hit=pts.filter(p=>p.hit);
+  missed.forEach((p,k)=>{ h+=`<circle class="dot" data-k="${pts.indexOf(p)}" cx="${30+(k%6)*12}" cy="${28+Math.floor(k/6)*14}" r="5" fill="${css("--crit")}" stroke="${css("--panel")}" stroke-width="2" style="cursor:pointer"/>`; });
+  hit.forEach((p,k)=>{ h+=`<circle class="dot" data-k="${pts.indexOf(p)}" cx="${X(Math.max(-1.5,Math.min(2.5,p.lead)))}" cy="${28+(k%6)*14}" r="5" fill="${css("--s2")}" stroke="${css("--panel")}" stroke-width="2" style="cursor:pointer"/>`; });
+  svg.innerHTML=h;
+  $("dotsNote").textContent=`Each dot is one contact (skeleton clearance under ${c.contact_mm} mm) in the unseen sessions: ${hit.length} warned, ${missed.length} missed. A warning counts if it comes up to ${c.report.twin.rules.match_before_s} s before the contact or while it lasts. Click a dot to watch it.`;
+  const tip=$("tip");
+  svg.onmousemove=e=>{const d=e.target.closest(".dot"); if(!d){tip.hidden=true;return;} const p=pts[+d.dataset.k]; tip.innerHTML=`${p.name.replace("_"," · ")}<br>contact at ${fmt(p.start)} s, ${p.min} mm<br>${p.hit?`warned ${fmt(p.lead)} s ${p.lead>=0?"before":"after it began"}`:"no warning"}`; tip.hidden=false; tip.style.left=(e.clientX+14)+"px"; tip.style.top=(e.clientY+14)+"px";};
+  svg.onmouseleave=()=>tip.hidden=true;
+  svg.onclick=async e=>{const d=e.target.closest(".dot"); if(!d) return; const p=pts[+d.dataset.k]; const it=c.items.find(i=>i.name==="chico_"+p.name); if(!it) return; selectKind(it.kind); await openRun(it.name); const v=$("video"); const go=()=>{v.currentTime=Math.max(0,p.start-3); update(v.currentTime);}; if(v.readyState>=1) go(); else v.addEventListener("loadedmetadata",go,{once:true}); v.scrollIntoView({behavior:"smooth",block:"center"});};
+}
+
+function renderFollowupChico(on){
+  const f=on?C().followup:null, panel=$("followupPanel");
+  if(!f){ panel.hidden=true; return; }
+  panel.hidden=false;
+  const NAMES={camera_only:"Camera only (the twin above)",controller_joints:"Robot from its controller",motion_forecast:"+ 1.2 s motion history and robot plan",
+    motion_two_cameras:"+ second camera (rear, 00_12)",motion_attentive:"+ attentive probe on the frozen encoder",motion_attentive_two_cameras:"+ attentive probe, two cameras"};
+  const ci=(x,k,p)=>x.ci95&&x.ci95[k]?` <span class="meta">(95% CI ${p?pct(x.ci95[k][0]):fmt(x.ci95[k][0],2)}–${p?pct(x.ci95[k][1]):fmt(x.ci95[k][1],2)})</span>`:"";
+  const table=(rows,withCI)=>{ const near=Object.values(rows).some(x=>x.mae_near_mm!=null);
+    return `<div class="fwrap"><table class="ftable"><tr><th>Variant</th>${near?"<th>Error near the robot</th>":""}<th>Contacts warned</th><th>Median lead</th><th>False warnings / min</th></tr>`+
+    Object.entries(rows).map(([k,x])=>`<tr><td>${NAMES[k]||k}</td>${near?`<td>${x.mae_near_mm==null?"–":fmt(x.mae_near_mm,0)+" mm"}</td>`:""}<td>${x.contacts_caught}/${x.contacts}${withCI?ci(x,"warned",true):""}</td>`+
+      `<td>${x.lead_s_median==null?"–":fmt(x.lead_s_median,2)+" s"}${withCI?ci(x,"lead"):""}</td><td>${fmt(x.false_alarms_per_min,2)}${withCI?ci(x,"fpm"):""}</td></tr>`).join("")+`</table></div>`; };
+  let h=`<p>Three changes were tested after the live run above, all offline from the same frozen encoder, with every threshold chosen on validation operators and every test operator scored once. The robot's keypoints come from its controller (CHICO's recorded robot skeleton stands in for it), so the camera only has to locate the person.</p>`;
+  if(f.rotation) h+=`<p><b>Every operator tested once</b> (5 folds of 4; thresholds on 4 other operators; ${Object.values(f.rotation)[0].contacts} contacts):</p>`+table(f.rotation,true);
+  if(f.paper_split) h+=`<p><b>Paper's test split only</b> (the 4 operators above; thresholds on 2). One split of 4 operators misled us: the motion step failed here but won over all 20.</p>`+table(f.paper_split,false);
+  h+=`<p class="meta">Sources: <code>outputs_chico_ctrl/report.json</code> and <code>rotation.json</code>, from <code>python chico_twin.py ctrl</code>, <code>motion</code> and <code>rotation</code>. Offline replays are not the live engine: compare rows within one table only.</p>`;
+  $("followup").innerHTML=h;
+}
+
+function renderHowChico(){
+  const c=C(), tw=c.report.twin, v=tw.validation;
+  $("how").innerHTML=`<p><b>Who it learned from.</b> ${tw.split.train.length} training operators (${tw.train_recordings} sessions, ${tw.training_ticks.toLocaleString()} clips, one every 0.2 s). Two validation operators chose the settings; the four test operators shown here were only ever played.</p>
+  <p><b>Perception.</b> The frozen V-JEPA 2 encoder on a 0.6-s clip, then three linear heads: the task (averaged over the last ${tw.rules.task_tau_s} s), the clearance now, and the smallest clearance in the next ${tw.ahead_s} s, both from the latent and its change over 0.4 s.</p>
+  <p><b>Warning.</b> When the 1-s forecast stays under ${Math.round(tw.warn_mm)} mm for ${tw.warn_ticks} tick${tw.warn_ticks>1?"s":""}; it re-arms after ${tw.rules.rearm_s} s above. That level was the best event-level F1 on the validation operators (${fmt(tw.validation_f1,2)}: ${v.contacts_caught} of ${v.contacts} contacts warned, ${v.alarms_false} false warnings).</p>
+  <p><b>Contact.</b> Skeleton clearance under ${tw.contact_mm} mm. The paper gives no threshold; ${tw.contact_mm} mm reproduces its count of 226 collisions over the whole dataset, and was fixed from the skeletons before any model was trained.</p>`;
+}
+
+function renderMethodChico(){
+  const c=C(), tw=c.report.twin;
+  $("method").innerHTML=`<p><b>Data.</b> CHICO (Sampieri et al., ECCV 2022, University of Verona): one operator, a KUKA LBR iiwa 14 at the bench, an ABB YuMi and another cobot in view. Front camera <code>${tw.camera}</code> at 25 fps, centre square crop. Operators S02, S03, S18, S19 are the test set, as in the paper's own split; S00 and S04 validation; the rest training.</p>
+  <p><b>Labels from geometry, not from a person.</b> Clearance is the smallest distance between any of the 15 human joints and any robot link (segment between two of the 9 robot keypoints), from the 3D skeletons released with the dataset. Those skeletons are themselves estimates (about 25 mm error, per the paper), and joints are centres, not skin, so "contact" here means skeleton lines closer than ${tw.contact_mm} mm.</p>
+  <p><b>Replay, not re-computation.</b> Each session was pushed frame by frame, at 25 fps on the wall clock, through the same real-time engine as the robot runs. The answers on this page are the ones it gave then, read from <code>outputs_chico/runs/*.json</code>; this page computes nothing. Twin file sha256 <code>${DOC?DOC.twin_sha256.slice(0,16):""}…</code>.</p>
+  <p><b>Limits.</b> One cell, one camera, four test operators. The video is unedited and the contacts are real. The warning catches about half of them, often before they begin, but it also fires at many close yet safe approaches: most of its warnings are false. It is a research signal, not something an operator could rely on, and never a safety function.</p>
+  <pre>python chico_twin.py prep
+python chico_twin.py dense
+python chico_twin.py fit
+python chico_twin.py play
+python chico_site.py</pre>`;
+}
+
+boot();
+</script>
